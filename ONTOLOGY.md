@@ -174,11 +174,11 @@ The blank line and description are omitted when the description is empty.
 **Header parsing.** Properties are read only from the leading run of recognized property
 lines, in any order. Keys match case-insensitively, keys and values are trimmed, and a
 later duplicate in the run overrides an earlier one. Recognized keys:
-- Task: `Status`, `ID`, `Tag`, `Created`, `Updated` (any value) and `Priority` (digits only).
-- Idea: `ID`, `Tag`, `Created`, `Updated` (any value) and `Score` (digits only).
+- Task: `Status`, `ID`, `Tag`, `Created`, `Updated` (any value) and `Priority` (digits only, fitting a signed 64-bit integer).
+- Idea: `ID`, `Tag`, `Created`, `Updated` (any value) and `Score` (digits only, fitting a signed 64-bit integer).
 
 The first line that is not a recognized property (no colon, unknown key, or a numeric key
-with a non-digit value) ends the header; it and everything after it are the description.
+with a non-digit value or one too large for 64 bits) ends the header; it and everything after it are the description.
 `Tag:` is read only to rebuild a missing ID and is never written.
 
 **Timestamps.** ISO-8601 UTC, `YYYY-MM-DDTHH:MM:SSZ`. Missing timestamps are absent, not errors.
@@ -212,7 +212,7 @@ missing or unreadable file -> []
 ```
 lines = trim(text).split("\n")
 header = leading lines while line is "key: value" and key (lowercased) is recognized
-         and (key not numeric or value is all digits)
+         and (key not numeric or value is all digits and fits i64)
 properties = header as map (later duplicate wins)
 description = trim(join(lines[len(header):]))
 priority | score = properties.numeric or DEFAULT_LOADED_PRIORITY

@@ -48,7 +48,8 @@ impl ParsedRecord {
 /// description can never override the header. Keys are matched
 /// case-insensitively; within the header a later duplicate overrides an
 /// earlier one. `numeric_keys` are only recognized when their value is all
-/// digits — a line like "Priority: high" ends the header.
+/// digits and fits an i64 — a line like "Priority: high" or a 20-digit
+/// "Priority:" ends the header, so the line is kept verbatim (D-8).
 pub fn parse_record(text: &str, string_keys: &[&str], numeric_keys: &[&str]) -> ParsedRecord {
     let lines: Vec<&str> = text.trim().split('\n').collect();
     let header = interpret_header(header_candidates(&lines), string_keys, numeric_keys);
@@ -82,7 +83,7 @@ fn interpret_header(
         .into_iter()
         .take_while(|(key, value)| {
             string_keys.contains(&key.as_str())
-                || (numeric_keys.contains(&key.as_str()) && is_digits(value))
+                || (numeric_keys.contains(&key.as_str()) && is_number(value))
         })
         .map(|(key, value)| (key, value.to_string()))
         .collect()
@@ -133,9 +134,12 @@ fn property_of(stripped: &str) -> Option<(String, &str)> {
     Some((key.trim().to_lowercase(), value.trim()))
 }
 
-/// True when the value is a non-empty run of ASCII digits (mirrors Python str.isdigit).
-fn is_digits(value: &str) -> bool {
-    !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit())
+/// True when the value is a non-empty run of ASCII digits (mirrors Python
+/// str.isdigit) that fits an i64. An oversized run is not a number here, so
+/// its line stays in the description instead of being replaced by the
+/// default (D-8, G-1).
+fn is_number(value: &str) -> bool {
+    !value.is_empty() && value.bytes().all(|b| b.is_ascii_digit()) && value.parse::<i64>().is_ok()
 }
 
 /// Extract the tag from an ID: the segment before the first hyphen when it is

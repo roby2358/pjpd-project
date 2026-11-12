@@ -4,6 +4,14 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Oversized Priority/Score values stay in the description
+A hand-edited `Priority:` or `Score:` value of digits too large for a signed 64-bit
+integer used to be consumed as a header line and silently replaced with
+DEFAULT_LOADED_PRIORITY, losing the value. Such a line is now not a recognized property:
+it ends the header and is kept verbatim in the description, like a non-digit value
+(D-8, Parse record rule). Clamping with a warning was rejected because the next save
+would overwrite the value. R-3 extended with four tests.
+
 ### 2026-11-12 — Legacy IDs are rewritten on save
 A record salvaged with an old-form `XX-XXXX-XX` ID used to keep it forever, and since that
 form fails the valid-ID check, no tool could address the record. Saving tasks or ideas

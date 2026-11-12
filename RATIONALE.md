@@ -140,8 +140,13 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   Alternatives: rewrite at load (an ID that changes on every read can't be addressed
   either); accept the old form in the valid-ID check (widens the tool surface for a
   salvage artifact).
-- **Known gap (tracked as a task):** an oversized number is silently replaced with
-  DEFAULT_LOADED_PRIORITY.
+- **An oversized number stays in the description.** A `Priority:` or `Score:` value of
+  digits too large for a signed 64-bit integer is not a recognized property, so its line
+  ends the header like `Priority: high` does (D-9) and is kept verbatim; the record takes
+  DEFAULT_LOADED_PRIORITY. Alternatives: clamp to the 64-bit maximum with a logged
+  warning (the next save would overwrite the original value, and a log line is no
+  substitute for the data, against G-1); arbitrary-precision integers as the retired
+  Python parser had (a wider type everywhere for values validation caps at VALUE_MAX).
 
 ## Server behavior
 
@@ -278,4 +283,4 @@ edits the same files directly and commits them with the code.
 | A crash or bad write destroys a file | Atomic rename plus backup in `bak/` (D-12) | R-12 |
 | One mistyped ID in a batch half-applies it | All IDs checked before any change (D-16) | R-17, R-22 |
 | A disk error partway through a batch half-applies it | Batch applied in memory and written with one save; a split across files is still possible (D-16) | R-17, R-22 |
-| A hand-edited number too large for 64 bits silently becomes the default | Not prevented; tracked as a task (D-8) | — |
+| A hand-edited number too large for 64 bits silently becomes the default | The line ends the header and stays verbatim in the description (D-8) | R-3 |

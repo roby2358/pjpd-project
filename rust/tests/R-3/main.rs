@@ -27,6 +27,59 @@ fn non_digit_numeric_property_ends_header() {
     assert_eq!(parsed.description, "Priority: high\nbody");
 }
 
+// R-3: a numeric key whose digits don't fit an i64 ends the header, so the
+// value is kept verbatim in the description (D-8, G-1).
+#[test]
+fn oversized_numeric_property_ends_header() {
+    let parsed = parse_record(
+        "Priority: 99999999999999999999\nStatus: ToDo\nbody",
+        &["status"],
+        &["priority"],
+    );
+    assert_eq!(parsed.numeric_property("priority"), None);
+    assert_eq!(parsed.property("status"), None);
+    assert_eq!(
+        parsed.description,
+        "Priority: 99999999999999999999\nStatus: ToDo\nbody"
+    );
+}
+
+// R-3: the largest i64 is still a number; one more is not.
+#[test]
+fn numeric_property_boundary_is_i64_max() {
+    let max = parse_record("Score: 9223372036854775807\nbody", &[], &["score"]);
+    assert_eq!(max.numeric_property("score"), Some(i64::MAX));
+    assert_eq!(max.description, "body");
+    let over = parse_record("Score: 9223372036854775808\nbody", &[], &["score"]);
+    assert_eq!(over.numeric_property("score"), None);
+    assert_eq!(over.description, "Score: 9223372036854775808\nbody");
+}
+
+// R-3: an oversized Priority in a task survives a load/save round trip in
+// the description; the record takes the default priority.
+#[test]
+fn oversized_task_priority_survives_round_trip() {
+    let task = Task::from_text("ID: t-ab12\nPriority: 123456789012345678901\nreal text").unwrap();
+    assert_eq!(task.priority, 1);
+    assert_eq!(
+        task.description,
+        "Priority: 123456789012345678901\nreal text"
+    );
+    let reloaded = Task::from_text(&task.to_text()).unwrap();
+    assert_eq!(reloaded.description, task.description);
+}
+
+// R-3: an oversized Score in an idea stays in the description.
+#[test]
+fn oversized_idea_score_stays_in_description() {
+    let idea = Idea::from_text("Score: 123456789012345678901\nID: spark-ab12\ntry it").unwrap();
+    assert_eq!(idea.score, 1);
+    assert_eq!(
+        idea.description,
+        "Score: 123456789012345678901\nID: spark-ab12\ntry it"
+    );
+}
+
 // R-3: an unknown key ends the header.
 #[test]
 fn unrecognized_property_lines_stay_in_description() {

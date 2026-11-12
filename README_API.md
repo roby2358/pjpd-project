@@ -42,7 +42,7 @@ Create or update a task. Provide `tag` to create a new task, or `id` to update a
 List the tasks in one status. Sorted with status `ToDo` before other statuses, then by priority descending, then by description.
 
 **Parameters:**
-- `count` (integer, optional): Maximum number of tasks to return (default: 20)
+- `count` (integer, optional): Maximum number of tasks to return, 1 to 1000 (default: 20)
 - `status` (string, optional): `todo` (default; tasks in `pjpd/tasks.txt`, including unknown statuses such as `Blocked`), `done` (`pjpd/tasks_done.txt`) or `verified` (`pjpd/tasks_verified.txt`). Case-insensitive; a task's saved status is matched the same way, so a hand-edited `done` is archived and listed as done.
 - `verbose` (boolean, optional): Return the full tasks. Default `false`.
 
@@ -88,7 +88,7 @@ Create or update an idea. Provide `tag` to create a new idea, or `id` to update 
 List ideas: active ideas first, then done ones, each by score (highest first).
 
 **Parameters:**
-- `count` (integer, optional): Maximum number of ideas to return (default: 20)
+- `count` (integer, optional): Maximum number of ideas to return, 1 to 1000 (default: 20)
 - `verbose` (boolean, optional): Return the full ideas. Default `false`.
 
 **Result:** `ideas` (each `id`, `score`, `summary`; with `verbose`, instead `id`, `score`, `description`, `created`, `updated`), `total_ideas` (how many ideas exist, before truncation), `project_file`, `message`, and `info` (e.g. `"Returned 20 of 34 total ideas"`) when truncated. `summary` is as for `pjpd_list_tasks`.

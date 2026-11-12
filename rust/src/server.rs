@@ -46,20 +46,23 @@ fn default_status() -> String {
 pub struct PutTaskParams {
     /// What needs to be done, in enough detail to act on without additional
     /// context. Self-contained: do not reference other task IDs.
+    #[schemars(length(min = 1))]
     pub description: String,
     /// Tag string (1-12 characters, alphanumeric and hyphens only). Provide to
     /// create a new task. Must describe the task itself (e.g. "oplock",
     /// "gitsemantics"), NEVER the project name — tasks already live inside a
     /// project, and the tag makes the task ID self-describing.
     #[serde(default)]
+    #[schemars(length(min = 1, max = 12))]
     pub tag: Option<String>,
     /// Existing task ID (format: `<tag>-XXXX`). Provide to update an existing task.
     #[serde(default)]
     pub id: Option<String>,
-    /// Priority from 0 (negligible) to 100 (urgent). Values outside this range
-    /// are allowed for exceptional cases. Defaults to 50 when creating a new
+    /// Priority from 0 (negligible) to 100 (urgent); values up to 9999 are
+    /// accepted for exceptional cases. Defaults to 50 when creating a new
     /// task. When updating, omit to preserve the task's existing priority.
     #[serde(default)]
+    #[schemars(range(min = 0, max = 9999))]
     pub priority: Option<i64>,
     /// Return the full record(s), description and timestamps included.
     /// Defaults to false: the result gives each task's id, status and
@@ -70,8 +73,9 @@ pub struct PutTaskParams {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct ListTasksParams {
-    /// Maximum number of tasks to return. Defaults to 20.
+    /// Maximum number of tasks to return, 1 to 1000. Defaults to 20.
     #[serde(default = "default_count")]
+    #[schemars(range(min = 1, max = 1000))]
     pub count: i64,
     /// Which tasks to list: "todo" (not yet done, the default), "done"
     /// (implemented, awaiting review) or "verified" (reviewed by the user).
@@ -88,6 +92,7 @@ pub struct ListTasksParams {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct MarkTaskParams {
     /// List of tag-based task IDs (format: `<tag>-XXXX`) to mark.
+    #[schemars(length(min = 1))]
     pub task_ids: Vec<String>,
     /// "done" (an agent finished and committed the work; moves to
     /// tasks_done.txt), "verified" (the user reviewed or tried it, from done
@@ -126,9 +131,11 @@ impl MarkState {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct ReprioritizeTaskParams {
     /// New priority to apply to every listed task. 0 (negligible) to 100
-    /// (urgent); values outside this range are allowed for exceptional cases.
+    /// (urgent); values up to 9999 are accepted for exceptional cases.
+    #[schemars(range(min = 0, max = 9999))]
     pub priority: i64,
     /// List of tag-based task IDs (format: `<tag>-XXXX`) to reprioritize.
+    #[schemars(length(min = 1))]
     pub task_ids: Vec<String>,
     /// Return the full record(s), description and timestamps included.
     /// Defaults to false: the result gives each task's id, status and
@@ -139,8 +146,9 @@ pub struct ReprioritizeTaskParams {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct ListIdeasParams {
-    /// Maximum number of ideas to return. Defaults to 20.
+    /// Maximum number of ideas to return, 1 to 1000. Defaults to 20.
     #[serde(default = "default_count")]
+    #[schemars(range(min = 1, max = 1000))]
     pub count: i64,
     /// Return the full records, description and timestamps included.
     /// Defaults to false: each idea gives its id, score and a `summary` (the
@@ -152,17 +160,20 @@ pub struct ListIdeasParams {
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct PutIdeaParams {
-    /// Relevance score from 0 (trivial) to 100 (critical). Values outside this
-    /// range are allowed for exceptional cases.
+    /// Relevance score from 0 (trivial) to 100 (critical); values up to 9999
+    /// are accepted for exceptional cases.
+    #[schemars(range(min = 0, max = 9999))]
     pub score: i64,
     /// What the idea entails, in enough detail for a human or model to
     /// understand its purpose and scope.
+    #[schemars(length(min = 1))]
     pub description: String,
     /// Tag string (1-12 characters, alphanumeric and hyphens only). Provide to
     /// create a new idea. Must describe the idea itself, NEVER the project
     /// name — ideas already live inside a project, and the tag makes the idea
     /// ID self-describing.
     #[serde(default)]
+    #[schemars(length(min = 1, max = 12))]
     pub tag: Option<String>,
     /// Existing idea ID (format: `<tag>-XXXX`). Provide to update an existing idea.
     #[serde(default)]
@@ -177,6 +188,7 @@ pub struct PutIdeaParams {
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct MarkIdeaDoneParams {
     /// List of tag-based idea IDs (format: `<tag>-XXXX`) to mark as done.
+    #[schemars(length(min = 1))]
     pub idea_ids: Vec<String>,
     /// Return the full record(s), description and timestamps included.
     /// Defaults to false: the result gives each idea's id and score only, to

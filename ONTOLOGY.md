@@ -355,6 +355,8 @@ id lists: non-empty, every id valid
 state: done | verified | idea, case-insensitive      (mark_task)
 status: todo | done | verified, case-insensitive     (list_tasks)
 ```
+The tool parameter JSON schemas advertise the range and length bounds above (`minimum`/
+`maximum`, `minLength`/`maxLength`, `minItems`) so a caller sees them before calling (D-22).
 
 ---
 

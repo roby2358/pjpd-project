@@ -37,6 +37,7 @@ as in the ONTOLOGY Numbers table.
 | R-25 | `pjpd_mark_task` with state `verified` and known IDs, from todo or done | Each task's status becomes `Verified` and it moves to `tasks_verified.txt`; listed under status `verified` only | automated |
 | R-26 | `pjpd_mark_task` with state `idea` and known IDs, from any file | Each task's description becomes a new idea with a fresh ID from the task's tag and score DEMOTED_IDEA_SCORE, with no reference to the task; the tasks leave every task file; the result lists the new ideas (id and score) and names `ideas.txt` | automated |
 | R-27 | A mutating tool (`pjpd_put_task`, `pjpd_mark_task` in every state, `pjpd_reprioritize_task`, `pjpd_put_idea`, `pjpd_mark_idea_done`) succeeds, with and without `verbose` | By default each task is reported by id, status and priority only and each idea by id and score only (no description or timestamps), besides `project_file`, `message` and any `warning`; with `verbose: true` the full records | automated |
+| R-28 | The JSON schemas the tools advertise for their parameters | priority and score carry `minimum` VALUE_MIN and `maximum` VALUE_MAX; count `minimum` COUNT_MIN and `maximum` COUNT_MAX; tag `minLength` 1 and `maxLength` TAG_MAX_LEN; description `minLength` 1; ID lists `minItems` 1; the priority and score descriptions name VALUE_MAX as the upper bound and never call values outside 0–100 allowed | automated |
 
 ## U — Usability (manual)
 

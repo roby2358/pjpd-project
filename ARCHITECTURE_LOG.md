@@ -4,6 +4,15 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Parameter schemas advertise validation bounds
+The tool parameter JSON schemas carried types and descriptions only; the range and length
+bounds that request validation enforces had been lost in the Rust port. They are now
+advertised through schemars attributes: priority and score VALUE_MIN..VALUE_MAX, count
+COUNT_MIN..COUNT_MAX, tag 1..TAG_MAX_LEN characters, description at least one character,
+ID lists at least one item (D-22). The priority and score descriptions said values
+outside 0–100 were allowed for exceptional cases; they now say values up to VALUE_MAX
+are accepted, matching validation. New row R-28.
+
 ### 2026-11-12 — List tools return summaries; `verbose` opts into full records
 `pjpd_list_tasks` returned each task's id, priority, status and full description;
 `pjpd_list_ideas` returned full ideas with timestamps. Both now take `verbose` (default

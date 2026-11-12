@@ -197,6 +197,20 @@ how decisions changed is in ARCHITECTURE_LOG.md.
 - **Known gap (tracked as a task):** each ID is then saved separately, so a disk error
   partway through can still leave a partial batch, and a batch leaves one backup per ID.
 
+### D-22 Parameter schemas advertise the validation bounds — *Decided*
+- **Alternatives:** state bounds only in parameter descriptions; rely on validation
+  errors alone.
+- **Why:** a calling model reads the tool's JSON schema before it calls (G-3, U-3), so a
+  machine-readable bound prevents a failed call that a validation error would only
+  explain afterwards. The Python server's Pydantic schemas carried these bounds and the
+  Rust port dropped them. Every range and length bound that request validation enforces
+  is advertised with a schemars attribute: priority and score VALUE_MIN..VALUE_MAX,
+  count COUNT_MIN..COUNT_MAX, tag 1..TAG_MAX_LEN characters, description at least one
+  character, ID lists at least one item. Validation still runs, since a schema is advice
+  to the caller, not a guarantee. Patterns (the tag character set, the ID format) are not
+  advertised; they stay in the descriptions. Parameter descriptions state the enforced
+  range rather than calling values above 100 unbounded.
+
 ### D-17 Warn about the old multi-project file — *Decided*
 - **Alternatives:** migrate it automatically; ignore it.
 - **Why:** projects from the old layout have their tasks in `pjpd/<dir-name>.txt`. Moving

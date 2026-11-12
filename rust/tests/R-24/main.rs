@@ -56,6 +56,32 @@ async fn list_tasks_names_the_listed_file() {
     }
 }
 
+// R-24: pjpd_mark_task names the file the tasks moved to: tasks_done.txt for
+// done and tasks_verified.txt for verified, whichever file each task came
+// from, and ideas.txt for idea.
+#[tokio::test]
+async fn mark_task_names_the_destination_file() {
+    let (dir, server) = server();
+    let a = create_task(&server, "a", "a", 5).await;
+    let b = create_task(&server, "b", "b", 5).await;
+    let c = create_task(&server, "c", "c", 5).await;
+    for (ids, state, file) in [
+        (vec![&a, &b], "done", "tasks_done.txt"),
+        (vec![&a], "verified", "tasks_verified.txt"),
+        (vec![&b, &c], "verified", "tasks_verified.txt"),
+        (vec![&a], "idea", "ideas.txt"),
+    ] {
+        let ids: Vec<&str> = ids.iter().map(|id| id.as_str()).collect();
+        let body = assert_success(&mark_tasks(&server, &ids, state).await);
+        let expected = dir.path().join("pjpd").join(file);
+        assert_eq!(
+            body["project_file"],
+            expected.to_string_lossy().as_ref(),
+            "{state}"
+        );
+    }
+}
+
 /// The response with its keys checked: exactly success, result and error.
 fn envelope(result: &CallToolResult) -> Value {
     let response = response_json(result);
@@ -66,8 +92,9 @@ fn envelope(result: &CallToolResult) -> Value {
 }
 
 // R-24: every tool's success result names the full path of the file it
-// operated on: tasks.txt for task tools (tasks_done.txt for listing done),
-// ideas.txt for idea tools and for demoting a task.
+// operated on: tasks.txt for task tools, tasks_done.txt for marking and
+// listing done, tasks_verified.txt for marking verified, ideas.txt for idea
+// tools and for demoting a task.
 #[tokio::test]
 async fn every_tool_success_names_its_project_file() {
     let (dir, server) = server();
@@ -79,6 +106,11 @@ async fn every_tool_success_names_its_project_file() {
     let done_tasks_file = dir
         .path()
         .join("pjpd/tasks_done.txt")
+        .to_string_lossy()
+        .into_owned();
+    let verified_tasks_file = dir
+        .path()
+        .join("pjpd/tasks_verified.txt")
         .to_string_lossy()
         .into_owned();
     let ideas_file = dir
@@ -125,12 +157,12 @@ async fn every_tool_success_names_its_project_file() {
         (
             "mark done",
             assert_success(&mark_tasks(&server, &[&a], "done").await),
-            &tasks_file,
+            &done_tasks_file,
         ),
         (
             "mark verified",
             assert_success(&mark_tasks(&server, &[&b], "verified").await),
-            &tasks_file,
+            &verified_tasks_file,
         ),
         (
             "list done",

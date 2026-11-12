@@ -4,6 +4,15 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — pjpd_mark_task names the file the tasks moved to
+`pjpd_mark_task` with state `done` or `verified` reported `tasks.txt` as its
+`project_file`, though the tasks had moved to `tasks_done.txt` or `tasks_verified.txt`,
+contradicting R-24. It now reports the file of the target Stage via
+`TaskStore::stage_file`, whichever file each task came from. State `idea` still names
+`ideas.txt`; `pjpd_put_task` and `pjpd_reprioritize_task` keep `tasks.txt`. R-24
+extended with one test; its every-tool test now expects `tasks_done.txt` and
+`tasks_verified.txt` for marking done and verified.
+
 ### 2026-11-12 — pjpd_list_tasks names the file it listed
 `pjpd_list_tasks` always reported `tasks.txt` as its `project_file`, even when `status`
 was `done` or `verified` and the tasks came from `tasks_done.txt` or

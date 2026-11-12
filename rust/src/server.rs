@@ -431,10 +431,13 @@ impl PjpdServer {
     }
 
     /// All-or-nothing bulk task update: if any ID is missing, nothing is modified.
+    /// Apply `patch` to every task in `task_ids`, all-or-nothing. The result's
+    /// project_file is the file of `file_stage` (R-24).
     fn bulk_update_tasks(
         &self,
         task_ids: &[String],
         patch: &TaskPatch,
+        file_stage: Stage,
         verbose: bool,
         message: &str,
     ) -> Result<CallToolResult, String> {
@@ -453,7 +456,7 @@ impl PjpdServer {
         result.insert("tasks".to_string(), json!(updated));
         result.insert(
             "project_file".to_string(),
-            json!(store.tasks_file.to_string_lossy()),
+            json!(store.stage_file(file_stage).to_string_lossy()),
         );
         result.insert("message".to_string(), json!(message));
         Ok(mcp_success(Value::Object(self.with_warning(result))))
@@ -508,18 +511,24 @@ impl PjpdServer {
         let state = MarkState::parse(&params.state)?;
         validation::validate_id_list(&params.task_ids, "Task ID")?;
         let count = params.task_ids.len();
-        let set_status = |status: &str, message: String| {
+        // project_file names the file the tasks moved to (R-24).
+        let set_status = |status: &str, stage: Stage, message: String| {
             let patch = TaskPatch {
                 description: None,
                 priority: None,
                 status: Some(status.to_string()),
             };
-            self.bulk_update_tasks(&params.task_ids, &patch, params.verbose, &message)
+            self.bulk_update_tasks(&params.task_ids, &patch, stage, params.verbose, &message)
         };
         match state {
-            MarkState::Done => set_status(STATUS_DONE, format!("Marked {count} task(s) as done")),
+            MarkState::Done => set_status(
+                STATUS_DONE,
+                Stage::Done,
+                format!("Marked {count} task(s) as done"),
+            ),
             MarkState::Verified => set_status(
                 STATUS_VERIFIED,
+                Stage::Verified,
                 format!("Marked {count} task(s) as verified"),
             ),
             MarkState::Idea => self.demote_tasks(&params.task_ids, params.verbose),
@@ -701,6 +710,7 @@ impl PjpdServer {
             self.bulk_update_tasks(
                 &params.task_ids,
                 &reprioritize,
+                Stage::Todo,
                 params.verbose,
                 &format!(
                     "Reprioritized {} task(s) to priority {}",

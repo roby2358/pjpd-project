@@ -1,15 +1,3 @@
-Priority:   97
-Status: ToDo
-ID: markcmd-hecn
-Created: 2026-11-12T19:09:44Z
-Updated: 2026-11-12T21:08:18Z
-
-Repurpose mark_task_done into one mark command, `pjpd_mark_task(task_ids, state)`, where state is `done` (implemented by an agent), `verified` (the user has reviewed or played it, from done or straight from todo), or `idea` (demote: the task's full text becomes a new idea and the task is removed from the task files). It replaces pjpd_mark_task_done, so the tool count stays the same. All ids must exist or nothing changes, as today. Ideas and tasks stay unlinked: no cross-reference properties. SKILL.md already documents this interface; match it.
-
-Split the done archive (tasks_done.txt) into a done file and a verified file to match. Replace list_tasks' show_done boolean with a `status` filter (todo, the default / done / verified) instead of adding a command.
-
-Principle: keep a paucity of commands; extend existing ones rather than adding new ones (RATIONALE D-18). Update ONTOLOGY.md (storage layout, Done split invariant, Save tasks rule, commands table), RATIONALE.md (D-6 and a new decision for verified/idea states), CRITERIA.md rows with tests, README_API.md, CLAUDE.md (storage layout, marking done), resources/intro.txt, and add an ARCHITECTURE_LOG entry. Pin the new on-disk layout in tests. Done when cargo test is green and every tool call in SKILL.md works as written.
-----
 Priority:   95
 Status: ToDo
 ID: donecase-xxcv

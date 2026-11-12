@@ -1,27 +1,67 @@
-Priority:   40
-Status: ToDo
-ID: legacyid-5s5w
-Created: 2026-08-13T22:38:03Z
-Updated: 2026-08-13T22:38:03Z
-When saving a record whose ID is in the legacy XX-XXXX-XX form (produced by the parser's salvage fallback), rewrite it to a valid tag-based ID so the record becomes addressable by the tools again. No need to preserve the old ID or leave a link; nothing external references these IDs yet. Applies to both task and idea stores.
-----
-Priority:   35
+Priority:   95
 Status: ToDo
 ID: donecase-xxcv
 Created: 2026-08-13T22:38:05Z
-Updated: 2026-08-13T22:38:05Z
+Updated: 2026-11-12T19:14:28Z
+
 Make status comparisons consistent and case-insensitive: Task is_done does an exact match against "Done" while the default list filter compares case-insensitively against "todo", so a hand-edited status like "done" is neither listed nor archived. Use one case-insensitive comparison rule everywhere status is checked.
 ----
-Priority:   30
+Priority:   90
 Status: ToDo
-ID: intoverflow-dsee
-Created: 2026-08-13T21:07:24Z
-Updated: 2026-08-13T21:07:24Z
-Preserve oversized numeric values in Priority and Score lines when loading hand-edited files. The parser consumes any all-digit value but silently substitutes the default when it exceeds 64-bit integer range, losing the original value with no trace; the retired Python implementation preserved arbitrary precision integers. Either leave the unparseable line in the description or clamp with a logged warning.
+ID: leandone-k4m2
+Created: 2026-11-12T02:50:00Z
+Updated: 2026-11-12T19:14:29Z
+
+Trim the responses of every mutating tool (put_task, put_idea, mark_task_done, mark_idea_done, reprioritize_task). Today each call echoes the full record text back (~150-300 tokens per task, sometimes 2-3 KB), which adds up in agent loops that never read the echo. By default return only id, status, priority (or score for ideas) and a short message, plus project_file as always; return the full record only when a verbose flag is set. Prefer extending existing parameters over adding commands. Update SPEC.md and README_API.md.
 ----
-Priority:   20
+Priority:   85
+Status: ToDo
+ID: markcmd-hecn
+Created: 2026-11-12T19:09:44Z
+Updated: 2026-11-12T19:14:30Z
+
+Repurpose mark_task_done into one mark command that takes one or more task ids and a target state: `done` (implemented by an agent), `verified` (the user has reviewed or played it, from done or straight from todo), or `idea` (demote: the task's full text becomes a new idea and the task is removed from the task files). All ids must exist or nothing changes, as today. Decide whether to rename the tool (e.g. pjpd_mark_task) or keep the old name; the total tool count must stay the same or go down. Ideas and tasks stay unlinked: no cross-reference properties.
+
+Split the done archive (tasks_done.txt) into a done file and a verified file to match. Replace list_tasks' show_done boolean with a status filter (todo/done/verified) instead of adding a command.
+
+Principle: keep a paucity of commands; extend existing ones rather than adding new ones. Update SPEC.md, README_API.md and CLAUDE.md (storage layout, marking-done rules), and pin the new on-disk layout in tests.
+----
+Priority:   80
+Status: ToDo
+ID: listsummary-w9x5
+Created: 2026-11-12T02:50:00Z
+Updated: 2026-11-12T19:14:30Z
+
+Add a summary mode to list_tasks (and list_ideas): a flag, e.g. summary: true, that returns for each record only the ID, priority/score, status, and the first line (or first ~100 characters) of the description. A full listing of 9 tasks costs ~2-3k tokens today; a summary would let an agent scan the backlog cheaply and read full text only for the task it picks. Consider making summary the default with full: true to opt in, and document it in README_API.md.
+----
+Priority:   75
+Status: ToDo
+ID: skillmd-h6kj
+Created: 2026-11-12T19:09:47Z
+Updated: 2026-11-12T19:14:31Z
+
+Write a SKILL.md for pjpd that teaches agents how to use it. Cover: when to use tasks vs ideas vs epics; the interview process that turns an idea into tasks (the agent asks the user questions until the idea is concrete, then files one or more fully fleshed-out tasks with put_task and closes the idea with mark_idea_done; no new command); what a task needs before it's ready (goal, settled design calls, done-when); when to demote a task back to an idea because it isn't fleshed out enough; done vs verified; tag naming (describe the task, not the project; max 12 chars, alphanumerics and hyphens); priorities; and the agent-loop workflow (one task per agent, a decisions log, mark done after commit, the user marks verified). Ideas and tasks are never linked to each other. Write it after the mark command supports done/verified/idea states so the skill documents the real commands. Reference it from README.md.
+----
+Priority:   70
 Status: ToDo
 ID: schemabounds-gyk3
 Created: 2026-08-13T21:07:30Z
-Updated: 2026-08-13T21:07:30Z
+Updated: 2026-11-12T19:14:32Z
+
 Add numeric range and string length bounds to the MCP parameter JSON schemas via schemars attributes, for example range 0 to 9999 on priority and score, 1 to 1000 on count, and length 1 to 12 on tag. Runtime validation already enforces these rules; the generated schema stopped advertising them after the Rust port, so calling models get less machine-readable guidance than the old Pydantic schemas provided.
+----
+Priority:   60
+Status: ToDo
+ID: legacyid-5s5w
+Created: 2026-08-13T22:38:03Z
+Updated: 2026-11-12T19:14:32Z
+
+When saving a record whose ID is in the legacy XX-XXXX-XX form (produced by the parser's salvage fallback), rewrite it to a valid tag-based ID so the record becomes addressable by the tools again. No need to preserve the old ID or leave a link; nothing external references these IDs yet. Applies to both task and idea stores.
+----
+Priority:   55
+Status: ToDo
+ID: intoverflow-dsee
+Created: 2026-08-13T21:07:24Z
+Updated: 2026-11-12T19:14:33Z
+
+Preserve oversized numeric values in Priority and Score lines when loading hand-edited files. The parser consumes any all-digit value but silently substitutes the default when it exceeds 64-bit integer range, losing the original value with no trace; the retired Python implementation preserved arbitrary precision integers. Either leave the unparseable line in the description or clamp with a logged warning.

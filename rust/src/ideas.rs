@@ -190,33 +190,3 @@ impl IdeaStore {
         Ok(true)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn parses_idea_record() {
-        let idea = Idea::from_text("Score:  30\nID: spark-ab12\ntry the thing").unwrap();
-        assert_eq!(idea.score, 30);
-        assert_eq!(idea.id, "spark-ab12");
-        assert_eq!(idea.tag, "spark");
-        assert_eq!(idea.description, "try the thing");
-        assert!(!idea.is_done());
-    }
-
-    #[test]
-    fn done_detection_uses_description_prefix() {
-        let idea = Idea::from_text("Score: 5\nID: x-ab12\n(Done) finished").unwrap();
-        assert!(idea.is_done());
-    }
-
-    #[test]
-    fn property_shaped_description_survives_write_and_reload() {
-        let mut idea = Idea::from_text("Score: 5\nID: x-ab12\nseed").unwrap();
-        idea.description = "Score: 9999\nrate everything higher".to_string();
-        let reloaded = Idea::from_text(&idea.to_text()).unwrap();
-        assert_eq!(reloaded.score, 5);
-        assert_eq!(reloaded.description, idea.description);
-    }
-}

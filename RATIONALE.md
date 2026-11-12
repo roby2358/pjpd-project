@@ -153,7 +153,10 @@ how decisions changed is in ARCHITECTURE_LOG.md.
 - **Why:** the directory is the label: a test's rule is visible from its path, and a
   coverage test can check every `automated` CRITERIA row against the tree. Cargo builds
   each `rust/tests/R-n/main.rs` as its own test target. In-module unit tests remain for
-  helpers that assert no rule.
+  helpers that assert no rule. Shared setup lives in `rust/tests/common/mod.rs`, which each
+  target includes by `#[path]`. Tests of a request-validation function belong to the rule
+  for bad tool arguments (R-15), not the ID-format rule (R-7), because `validation.rs` is
+  the tool surface's check.
 
 ### D-20 Designs not yet built stay in the task list — *Decided*
 - **Alternatives:** record them in ONTOLOGY as `[D, unbuilt]`.

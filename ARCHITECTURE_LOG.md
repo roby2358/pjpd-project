@@ -4,6 +4,19 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Rule tests moved into `rust/tests/R-n/`
+Finishes the ontology conversion (D-19); no behavior change. `rust/tests/tool_tests.rs`,
+`rust/tests/store_tests.rs` and every in-module `#[cfg(test)]` block (textrec, record, ids,
+tasks, ideas, validation; all asserted rules) are replaced by one test target per
+`automated` CRITERIA row, `rust/tests/R-1/` to `rust/tests/R-24/`, with shared setup in
+`rust/tests/common/mod.rs`. Tests that checked two rules were split: put_task creation
+(R-13, R-9 timestamps, R-24 `project_file`), the done-file split (R-10, R-12 no backup),
+idea sorting (R-11, R-22 score kept), put_idea plus list (R-20, R-21), and task parsing
+(R-3, R-6 tag, R-8 default priority). R-8 gained a test for a record with no Priority or
+Status line. `rust/tests/criteria_coverage.rs` now checks CRITERIA.md against the tree.
+Tests went from 59 to 71. The CRITERIA partial-coverage list was re-checked against the
+moved tests.
+
 ### 2026-11-12 — SPEC.md converted to the ontology doc set
 ONTOLOGY.md, CRITERIA.md, RATIONALE.md and this log replace SPEC.md, which is deleted. The
 new docs describe the code. SPEC.md, written for the Python implementation, disagreed with

@@ -24,7 +24,7 @@ When a rule, number or tool changes, update in the same change: the ONTOLOGY rul
 ```bash
 cd rust
 cargo test                 # Run all tests
-cargo test --test tool_tests   # Run one test file
+cargo test --test R-10        # Run one rule's tests (rust/tests/R-10/)
 cargo build --release      # Build binary at rust/target/release/pjpd
 cargo fmt                  # Format
 ```
@@ -70,7 +70,7 @@ The full reasoning is in RATIONALE.md; these are the ones most easily broken by 
 
 ## Development Preferences
 
-- No one-time test scripts — unit tests live in-module (`#[cfg(test)]`), integration tests in `rust/tests/`
+- No one-time test scripts. Tests for a CRITERIA rule live in `rust/tests/R-n/` (one target per rule, each test asserting that one rule, shared setup in `rust/tests/common/mod.rs`); `rust/tests/criteria_coverage.rs` checks the tree against CRITERIA.md (D-19). In-module `#[cfg(test)]` tests are only for helpers that assert no rule; cross-rule walkthroughs go in `rust/tests/*.rs`
 - Favor functional constructions over imperative
 - No globals — use struct instance properties
 - Keep metadata minimal

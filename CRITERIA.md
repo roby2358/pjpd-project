@@ -52,23 +52,30 @@ as in the ONTOLOGY Numbers table.
 
 ## Status
 
-**2026-11-12.** The criteria were written from the code when SPEC.md was converted. The
-existing tests still live in `rust/tests/*.rs` and in-module `#[cfg(test)]` blocks; moving
-them into `rust/tests/R-n/` directories and adding the coverage test is the next step of
-the conversion. Until then, `automated` means tests for the row exist, not that a coverage
-test checks it.
+**2026-11-12.** The criteria were written from the code when SPEC.md was converted. Every
+`automated` row's tests live in `rust/tests/R-n/`, and `rust/tests/criteria_coverage.rs`
+fails when an `automated` row has no tests there, a directory has no `automated` row, or
+an Instrument cell is not an allowed value.
 
 **Not yet covered:** X-1.
 **Manual only:** U-1, U-2, U-3, X-2.
 **Retired:** none.
 
 **Partial coverage:**
+- R-1: a missing file reading as no records is untested.
+- R-2: idea rendering (`Score:` header) and the Created/Updated lines are pinned only indirectly, by R-4 round trips and R-22's on-disk check.
 - R-6: an invalid `Tag:` dropping the record is tested only at the ID-salvage level, not through a file load.
 - R-8: the Score default is untested; only Priority and Status are checked.
 - R-9: stamping a record that has no timestamps on patch, and stamping on idea update and idea mark done, are untested.
-- R-15: empty description and empty ID list are untested.
+- R-10: the done file's sort order, and writing it only when it has tasks or already exists, are untested.
+- R-11: score order within each group is untested.
+- R-12: the `ideas.txt` backup is tested only through `write_atomic`, not through the idea store.
+- R-14: status unchanged on update, the unknown-ID message naming `pjpd_list_tasks`, and "changes nothing" are untested.
+- R-15: through the tools only tag-and-id-together is tested; the other cases are checked on the validation functions. Empty description, empty ID list, and "change nothing" are untested.
 - R-16: the case-insensitive `todo` filter, ranking of statuses other than `ToDo`/`Done`, and the description tiebreak are untested.
-- R-20: the unknown-ID failure is untested.
-- R-21: truncation to `count` is untested.
+- R-17: the unknown-ID failure is tested only for `pjpd_mark_task_done`, not `pjpd_reprioritize_task`.
+- R-20: updating by `id` through the tool, and the unknown-ID failure, are untested.
+- R-21: save order and truncation to `count` are untested.
 - R-22: all-or-nothing for unknown idea IDs is untested.
-- R-24: `project_file` is asserted only for `pjpd_put_task`.
+- R-23: idea tools never warning, and no warning when the file is `tasks.txt` itself, are untested.
+- R-24: `project_file` is asserted only for `pjpd_put_task`; failures having `result: ""` is untested.

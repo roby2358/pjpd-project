@@ -73,39 +73,3 @@ pub fn validate_tag_or_id(
     }
     validate_exactly_one_of_tag_or_id(tag, id)
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn tag_rules() {
-        assert!(validate_tag("fix-bug").is_ok());
-        assert!(validate_tag("").is_err());
-        assert!(validate_tag("thirteenchars").is_err());
-        assert!(validate_tag("has space").is_err());
-    }
-
-    #[test]
-    fn id_rules() {
-        assert!(validate_id("tag-ab29", "Task ID").is_ok());
-        assert!(validate_id("nodash", "Task ID").is_err());
-        assert!(validate_id("tag-ABCD", "Task ID").is_err());
-    }
-
-    #[test]
-    fn exactly_one_of_tag_or_id() {
-        let some = |s: &str| Some(s.to_string());
-        assert!(validate_exactly_one_of_tag_or_id(&some("t"), &None).is_ok());
-        assert!(validate_exactly_one_of_tag_or_id(&None, &some("t-ab12")).is_ok());
-        assert!(validate_exactly_one_of_tag_or_id(&some("t"), &some("t-ab12")).is_err());
-        assert!(validate_exactly_one_of_tag_or_id(&None, &None).is_err());
-    }
-
-    #[test]
-    fn ranges() {
-        assert!(validate_range(0, 0, 9999, "priority").is_ok());
-        assert!(validate_range(10000, 0, 9999, "priority").is_err());
-        assert!(validate_range(0, 1, 1000, "count").is_err());
-    }
-}

@@ -192,7 +192,10 @@ pjpd-project/
 │   │   ├── textrec.rs       # ----separated records and atomic writes
 │   │   ├── ids.rs           # Tag-based ID generation and checks
 │   │   └── validation.rs    # Request validation
-│   └── tests/               # Integration tests
+│   └── tests/
+│       ├── R-1/ … R-24/      # One test target per CRITERIA rule (main.rs)
+│       ├── common/mod.rs     # Shared setup for the rule tests
+│       └── criteria_coverage.rs  # Checks CRITERIA.md against the R-n directories
 ├── resources/intro.txt      # Text of the pjpd_intro prompt
 ├── pjpd/                    # This project's own tasks and ideas
 ├── ONTOLOGY.md              # Implementation reference: entities, rules, interface
@@ -206,7 +209,8 @@ pjpd-project/
 ```bash
 cd rust
 cargo test                       # all tests
-cargo test --test tool_tests     # one test file
+cargo test --test R-10           # one rule's tests (rust/tests/R-10/)
+cargo test --test criteria_coverage  # CRITERIA rows vs test directories
 ```
 
 ### Code quality

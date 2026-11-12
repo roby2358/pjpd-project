@@ -6,6 +6,22 @@ Updated: 2026-08-13T20:49:18Z
 
 Try the new pjpd out *and see if it works*
 ----
+Priority:   98
+Status: Done
+ID: testdirs-dygz
+Created: 2026-11-12T19:35:16Z
+Updated: 2026-11-12T21:28:11Z
+
+Finish the ontology conversion by moving the Rust tests into one directory per CRITERIA rule (RATIONALE D-19), with no behavior change.
+
+- Each `automated` R-row in CRITERIA.md (R-1 to R-24) gets `rust/tests/R-n/main.rs`; Cargo builds each as its own test target. Use submodule files inside the directory named for what they check if one file gets long. Shared setup (temp-dir server, response_json, assert_success/assert_failure, create_task) moves to a helpers module both targets can include, e.g. `rust/tests/common/mod.rs`.
+- Each test asserts exactly one rule. Split any test that checks two rules (e.g. a list test that also checks mark-done, or a put_task test that also checks timestamps and project_file) and move each part to its rule's directory. Happy-path walkthroughs that touch many rules stay outside the R-n directories as integration tests.
+- Move rule-asserting tests out of the in-module `#[cfg(test)]` blocks in textrec.rs, record.rs, ids.rs, tasks.rs, ideas.rs and validation.rs; expose what they need only through the public API (make an item pub only if no public path reaches it). In-module tests remain for helpers that assert no rule.
+- Add a coverage test (e.g. `rust/tests/criteria_coverage.rs`) that parses CRITERIA.md and fails when: an `automated` row has no `rust/tests/R-n/` containing a test; a `rust/tests/R-n/` exists for a row that is missing or not `automated`; or an Instrument cell is not one of `automated`, `manual — ...`, `not yet covered`, `retired`.
+- Comment each test with the case it covers, citing the R-n, not section numbers.
+
+Docs in the same change: CLAUDE.md Development Preferences (rule tests live in rust/tests/R-n/, in-module tests only for non-rule helpers; update the cargo test example), README.md test commands and project structure, the CRITERIA.md Status section (drop the note that tests aren't in R-n directories yet; keep the partial-coverage list accurate), and an ARCHITECTURE_LOG entry. Done when `cargo test` is green with the same or more tests, including the coverage test.
+----
 Priority:   80
 Status: Done
 ID: headerparse-z7xw

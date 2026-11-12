@@ -120,20 +120,33 @@ impl IdeaStore {
     }
 
     pub fn add(&self, description: &str, score: i64, tag: &str) -> Result<Idea, String> {
-        let mut idea = Idea {
-            id: ids::generate_with_tag(tag)?,
-            tag: tag.to_string(),
-            score,
-            description: textrec::indent_separator_lines(description),
-            created: None,
-            updated: None,
-        };
-        idea.stamp();
+        let mut added = self.add_all(&[(description.to_string(), tag.to_string())], score)?;
+        Ok(added.remove(0))
+    }
+
+    /// Add one idea per (description, tag) pair, all with the same score, in
+    /// one load and one save. Returns the new ideas in input order.
+    pub fn add_all(&self, entries: &[(String, String)], score: i64) -> Result<Vec<Idea>, String> {
+        let added = entries
+            .iter()
+            .map(|(description, tag)| {
+                let mut idea = Idea {
+                    id: ids::generate_with_tag(tag)?,
+                    tag: tag.clone(),
+                    score,
+                    description: textrec::indent_separator_lines(description),
+                    created: None,
+                    updated: None,
+                };
+                idea.stamp();
+                Ok(idea)
+            })
+            .collect::<Result<Vec<Idea>, String>>()?;
 
         let mut ideas = self.load();
-        ideas.push(idea.clone());
+        ideas.extend(added.iter().cloned());
         self.save(&mut ideas).map_err(|e| e.to_string())?;
-        Ok(idea)
+        Ok(added)
     }
 
     /// Replace an idea's description and score. Returns Ok(None) when the ID

@@ -1,5 +1,6 @@
 //! R-12: rewriting `tasks.txt` or `ideas.txt` first moves the previous file to
-//! `bak/<stem>.<timestamp>.<ext>`; rewriting `tasks_done.txt` leaves no backup.
+//! `bak/<stem>.<timestamp>.<ext>`; rewriting `tasks_done.txt` or
+//! `tasks_verified.txt` leaves no backup.
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -45,25 +46,37 @@ fn write_atomic_no_backup_keeps_no_copy() {
     assert!(!dir.path().join("bak").exists());
 }
 
-// R-12: rewriting tasks_done.txt never creates a backup of it.
+// R-12: rewriting tasks_done.txt or tasks_verified.txt never creates a
+// backup of either.
 #[test]
-fn done_file_rewrite_leaves_no_backup() {
+fn archive_file_rewrites_leave_no_backup() {
     let dir = TempDir::new().unwrap();
     let store = TaskStore::new(dir.path());
-
-    let task = store.add("do it", 5, "split").unwrap();
-    let done = TaskPatch {
-        description: None,
-        priority: None,
-        status: Some("Done".to_string()),
+    let set_status = |id: &str, status: &str| {
+        let patch = TaskPatch {
+            description: None,
+            priority: None,
+            status: Some(status.to_string()),
+        };
+        store.update(id, &patch).unwrap();
     };
-    store.update(&task.id, &done).unwrap();
+
+    let first = store.add("do it", 5, "split").unwrap();
+    let second = store.add("and this", 5, "split").unwrap();
+    set_status(&first.id, "Done");
+    set_status(&second.id, "Done");
+    set_status(&first.id, "Verified");
+    set_status(&second.id, "Verified");
 
     let bak_names: Vec<String> = std::fs::read_dir(dir.path().join("pjpd/bak"))
         .unwrap()
         .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
         .collect();
-    assert!(bak_names.iter().all(|n| !n.starts_with("tasks_done.")));
+    assert!(
+        bak_names
+            .iter()
+            .all(|n| !n.starts_with("tasks_done.") && !n.starts_with("tasks_verified."))
+    );
 }
 
 // R-12: a second task write through the tool leaves a backup in pjpd/bak/.

@@ -28,7 +28,7 @@ async fn legacy_project_file_produces_warning() {
     let result = server
         .pjpd_list_tasks(Parameters(ListTasksParams {
             count: 20,
-            show_done: false,
+            status: "todo".to_string(),
         }))
         .await;
     let body = assert_success(&response_json(&result));

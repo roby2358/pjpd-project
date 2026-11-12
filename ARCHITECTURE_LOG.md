@@ -4,6 +4,19 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — `pjpd_mark_task` replaces `pjpd_mark_task_done`; verified archive added
+`pjpd_mark_task_done(task_ids)` became `pjpd_mark_task(task_ids, state)` with state `done`,
+`verified` or `idea` (D-21); the tool count is unchanged. `verified` sets status
+`Verified` and moves the task to the new `pjpd/tasks_verified.txt`, written without
+backups like `tasks_done.txt` (D-6), which keeps its name. `idea` demotes: each task's
+description becomes a new idea with a fresh ID from its tag and score DEMOTED_IDEA_SCORE,
+and the task is removed. `pjpd_list_tasks` lost `show_done` (todo only, or everything) and
+gained `status` (`todo` default, `done`, `verified`), which selects by file: a status other
+than `Done`/`Verified`, such as `Blocked`, used to be hidden unless `show_done` and now
+lists under `todo`. The status rank no longer orders Done after ToDo, since one listing
+holds one stage. New rows R-25 (verified) and R-26 (demote); R-10, R-12, R-15, R-16, R-17
+and R-18 updated. The SKILL.md interface now works as written.
+
 ### 2026-11-12 — Rule tests moved into `rust/tests/R-n/`
 Finishes the ontology conversion (D-19); no behavior change. `rust/tests/tool_tests.rs`,
 `rust/tests/store_tests.rs` and every in-module `#[cfg(test)]` block (textrec, record, ids,

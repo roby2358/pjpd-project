@@ -34,17 +34,22 @@ Create or update a task. Provide `tag` to create a new task, or `id` to update a
 - `priority` (integer, optional): Priority from 0 (negligible) to 100 (urgent); values up to 9999 are accepted for exceptional cases. Defaults to 50 when creating. When updating, omit to keep the existing priority.
 
 #### `pjpd_list_tasks`
-List tasks. Sorted ToDo-first, then by priority descending, then by description. Done tasks are read from `pjpd/tasks_done.txt`.
+List the tasks in one status. Sorted with status `ToDo` before other statuses, then by priority descending, then by description.
 
 **Parameters:**
 - `count` (integer, optional): Maximum number of tasks to return (default: 20)
-- `show_done` (boolean, optional): Include completed tasks (default: false)
+- `status` (string, optional): `todo` (default; tasks in `pjpd/tasks.txt`, including unknown statuses such as `Blocked`), `done` (`pjpd/tasks_done.txt`) or `verified` (`pjpd/tasks_verified.txt`). Case-insensitive.
 
-#### `pjpd_mark_task_done`
-Mark one or more tasks as completed; each moves to `pjpd/tasks_done.txt`. All IDs must exist or nothing is changed.
+#### `pjpd_mark_task`
+Move one or more tasks to a new state. All IDs must exist or nothing is changed.
+
+- `done`: an agent finished and committed the work. Status becomes `Done`; each task moves to `pjpd/tasks_done.txt`. Result: `tasks` (full task fields), `message`.
+- `verified`: the user reviewed or tried the work. Allowed from done or straight from todo. Status becomes `Verified`; each task moves to `pjpd/tasks_verified.txt`. Result: `tasks`, `message`.
+- `idea`: demote. Each task's description becomes a new idea (a fresh ID with the task's tag, score 50, no link back to the task) and the task is removed from the task files. Result: `ideas` (full idea fields), `project_file` naming `pjpd/ideas.txt`, `message`.
 
 **Parameters:**
 - `task_ids` (list of strings, required): Tag-based task IDs (format: `<tag>-XXXX`)
+- `state` (string, required): `done`, `verified` or `idea`. Case-insensitive.
 
 #### `pjpd_reprioritize_task`
 Set the priority of one or more tasks without resending the description text. All IDs must exist or nothing is changed.

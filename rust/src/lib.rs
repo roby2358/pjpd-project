@@ -1,7 +1,7 @@
 //! pjpd — single-project task and idea management over MCP.
 //!
 //! The current working directory is the project root. All data lives under
-//! `<cwd>/pjpd/` (tasks.txt, tasks_done.txt, ideas.txt) as plain text files.
+//! `<cwd>/pjpd/` (tasks.txt, tasks_done.txt, tasks_verified.txt, ideas.txt) as plain text files.
 
 pub mod ideas;
 pub mod ids;

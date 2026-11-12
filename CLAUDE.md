@@ -40,7 +40,7 @@ Run the server by executing `rust/target/release/pjpd` with the project root as 
 **Single-project model**: The cwd is the project. There is one `pjpd/tasks.txt` file — no named projects, no project parameter on task tools.
 
 **Module map** (all under `rust/src/`):
-- `tasks.rs` — `Task` records + `TaskStore` backed by `pjpd/tasks.txt` (ToDo) and `pjpd/tasks_done.txt` (Done archive). `TaskPatch` expresses partial updates.
+- `tasks.rs` — `Task` records + `TaskStore` backed by `pjpd/tasks.txt` (ToDo), `pjpd/tasks_done.txt` (Done archive) and `pjpd/tasks_verified.txt` (Verified archive). `Stage` maps a status to its file. `TaskPatch` expresses partial updates.
 - `ideas.rs` — `Idea` records + `IdeaStore` backed by `pjpd/ideas.txt`.
 - `record.rs` — the shared record shape: `Key: value` property lines + description, ID resolution, timestamps.
 - `textrec.rs` — `----`-separated records in .txt files (reads 3+ hyphens for backward compat) and atomic writes (timestamped backup to `bak/`, then rename).
@@ -52,10 +52,11 @@ Run the server by executing `rust/target/release/pjpd` with the project root as 
 **Storage layout on disk**:
 ```
 <cwd>/pjpd/
-├── tasks.txt         # ToDo tasks for the project
-├── tasks_done.txt    # Done tasks (archive; not backed up to bak/)
-├── ideas.txt         # All ideas
-└── bak/              # Timestamped backups from atomic writes
+├── tasks.txt          # ToDo tasks for the project
+├── tasks_done.txt     # Done tasks (archive; not backed up to bak/)
+├── tasks_verified.txt # Verified tasks (archive; not backed up to bak/)
+├── ideas.txt          # All ideas
+└── bak/               # Timestamped backups from atomic writes
 ```
 
 ## Key Design Decisions
@@ -65,7 +66,7 @@ The full reasoning is in RATIONALE.md; these are the ones most easily broken by 
 - **CWD is the project root**, with no configuration and no multi-project support (D-1). Keep the command count small; extend an existing tool before adding one (D-18).
 - **The on-disk text format is the cross-language contract** (D-2): `----` separators, `Priority:`/`Score:` padded to width 4, properties read only from the leading header run, a blank line before the description (D-9), separator-shaped description lines indented two spaces on write (D-10), the ID pattern, and the sort orders. The on-disk format section of ONTOLOGY states it exactly; the tests pin it.
 - **Priority (tasks) and score (ideas) are deliberately distinct concepts** (D-4). Don't unify the fields or their vocabulary.
-- **Marking done**: tasks get status `Done` and move to `tasks_done.txt` (D-6); ideas get a `(Done)` prefix and keep their score (D-7).
+- **Marking tasks**: `pjpd_mark_task(task_ids, state)` (D-21). `done` sets status `Done` and moves the task to `tasks_done.txt`; `verified` sets `Verified` and moves it to `tasks_verified.txt` (D-6); `idea` turns the description into a new, unlinked idea and removes the task. Ideas get a `(Done)` prefix and keep their score (D-7).
 - **Forgiving parser**: salvage malformed records; statuses stay open strings so unknown values survive a round trip (D-8).
 
 ## Development Preferences

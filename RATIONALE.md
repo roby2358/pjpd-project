@@ -78,18 +78,44 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   cases sometimes need room above it, and NUMBER_WIDTH padding holds four digits. Values
   outside VALUE_MIN..VALUE_MAX are rejected rather than silently clamped.
 
-### D-6 Done tasks move to `tasks_done.txt`, which has no backups — *Decided*
-- **Alternatives:** keep Done tasks in `tasks.txt`; delete them.
+### D-6 Done and Verified tasks move to their own archive files, which have no backups — *Decided*
+- **Alternatives:** keep finished tasks in `tasks.txt`; delete them; one archive holding
+  both Done and Verified tasks.
 - **Why:** an agent reads `tasks.txt` constantly; finished work there is noise and cost
-  (G-3). Keeping it in a separate archive preserves the record (G-1). The archive only
-  grows by tasks that already had backups in `tasks.txt`'s history, so backing it up on
-  every write would multiply `bak/` for no safety gain.
+  (G-3). Keeping it in separate archives preserves the record (G-1). Done tasks (in
+  `tasks_done.txt`) wait for the user's review; Verified ones (in `tasks_verified.txt`) are
+  finished for good, so one file per stage lets the user see the review queue at a glance
+  and lets `pjpd_list_tasks` filter by file. The file is chosen by an exact status match,
+  and the list filter uses the same rule, so every task lists under exactly one status
+  value; an unknown status such as `Blocked` stays in `tasks.txt` and lists as todo. The
+  archives only grow by tasks that already had backups in `tasks.txt`'s history, so
+  backing them up on every write would multiply `bak/` for no safety gain.
+- **Why `tasks_verified.txt` rather than renaming the done file:** `tasks_done.txt` keeps its
+  name so existing projects and older servers still read and write the same Done archive.
 
 ### D-7 An idea closes with a `(Done)` description prefix and keeps its score — *Decided*
 - **Alternatives:** a Status line on ideas; zeroing the score; deleting closed ideas.
 - **Why:** ideas are not actionable, so they have no workflow state to track. The prefix
   is visible in the file and in any listing, and keeping the score shows what the idea was
   worth even though it's off the books. Closed ideas sort after active ones (R-11).
+
+### D-21 Marking a task takes a state: done, verified or idea — *Decided*
+- **Alternatives:** separate tools per transition (`mark_task_done`, `mark_task_verified`,
+  `demote_task`); a delete tool plus a manual `put_idea`.
+- **Why:** one `pjpd_mark_task(task_ids, state)` replaces `pjpd_mark_task_done`, so the
+  tool count stays the same (D-18). `done` means an agent finished and committed the
+  work; `verified` means the user reviewed or tried it, and is allowed from any stage,
+  including straight from todo, because the user may approve without an agent's done step.
+  `idea` demotes a task that turned out not to be ready: its description becomes a new
+  idea and the task is removed.
+- **Demoted ideas:** the idea gets a fresh ID from the task's tag, not the task's ID, and
+  no property pointing back, because tasks and ideas are never linked (ONTOLOGY
+  non-goals). Its score is DEMOTED_IDEA_SCORE, the middle of the scale, rather than the
+  task's priority: priority and score measure different things (D-4), and the idea is
+  re-scored when someone looks at it. Ideas are saved before tasks are removed, so a
+  failure in between leaves the text in both places rather than in neither (G-1).
+- **State and status values** are matched case-insensitively, like the old `todo` filter,
+  since a calling model may capitalize them.
 
 ### D-8 The parser is forgiving — *Decided*
 - **Alternatives:** reject malformed records with an error; skip them with a warning.
@@ -100,8 +126,8 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   no ID can be built.
 - **Known gaps (tracked as tasks):** an old-form ID fails the valid-ID check, so tools
   can't address that record; an oversized number is silently replaced with
-  DEFAULT_LOADED_PRIORITY; status comparison is exact for `Done` but case-insensitive for
-  the `todo` list filter.
+  DEFAULT_LOADED_PRIORITY; status comparison is exact (`Done`, `Verified`), so a
+  hand-edited `done` stays in `tasks.txt` and lists as todo.
 
 ## Server behavior
 
@@ -179,7 +205,8 @@ None.
 ## How it's used / how it's abused
 
 **Normal use.** An agent session in a project calls `pjpd_list_tasks`, picks the top task,
-works it, and calls `pjpd_mark_task_done`. New work found along the way goes in with
+works it, and calls `pjpd_mark_task` with state `done`. The person reviews done work and
+has it marked `verified`; a task that turns out not to be ready is marked `idea`. New work found along the way goes in with
 `pjpd_put_task`; half-formed thoughts go in with `pjpd_put_idea`. The person reads and
 edits the same files directly and commits them with the code.
 

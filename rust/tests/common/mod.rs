@@ -8,7 +8,7 @@ use rmcp::model::CallToolResult;
 use serde_json::Value;
 use tempfile::TempDir;
 
-use pjpd::server::{PjpdServer, PutTaskParams};
+use pjpd::server::{ListTasksParams, MarkTaskParams, PjpdServer, PutTaskParams};
 
 /// A server rooted at a fresh temp directory; keep the TempDir alive.
 pub fn server() -> (TempDir, PjpdServer) {
@@ -57,4 +57,26 @@ pub async fn create_task(
         .await;
     let body = assert_success(&response_json(&result));
     body["id"].as_str().unwrap().to_string()
+}
+
+/// Call `pjpd_mark_task` and return the parsed response.
+pub async fn mark_tasks(server: &PjpdServer, task_ids: &[&str], state: &str) -> Value {
+    let result = server
+        .pjpd_mark_task(Parameters(MarkTaskParams {
+            task_ids: task_ids.iter().map(|id| id.to_string()).collect(),
+            state: state.to_string(),
+        }))
+        .await;
+    response_json(&result)
+}
+
+/// Call `pjpd_list_tasks` with a status filter and return the success result.
+pub async fn list_tasks(server: &PjpdServer, status: &str) -> Value {
+    let result = server
+        .pjpd_list_tasks(Parameters(ListTasksParams {
+            count: 20,
+            status: status.to_string(),
+        }))
+        .await;
+    assert_success(&response_json(&result))
 }

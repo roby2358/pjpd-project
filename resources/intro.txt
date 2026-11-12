@@ -8,10 +8,10 @@ Key Features:
 • Simple, human-readable text format
 • MCP tools for creating, listing, updating, and completing tasks and ideas
 
-All data is stored under <cwd>/pjpd/ as plain text files (tasks.txt, tasks_done.txt, ideas.txt).
+All data is stored under <cwd>/pjpd/ as plain text files (tasks.txt, tasks_done.txt, tasks_verified.txt, ideas.txt).
 
 Task Format:
-Each task is stored with a tag-based ID, priority level, status (ToDo/Done), and description, separated by "----" lines (asciidoc style). Files using the older "---" separator are also read correctly.
+Each task is stored with a tag-based ID, priority level, status (ToDo/Done/Verified), and description, separated by "----" lines (asciidoc style). Files using the older "---" separator are also read correctly.
 
 Priority Levels:
 • Higher numbers = higher priority (e.g., priority 100 is higher than priority 1)
@@ -21,8 +21,8 @@ Available MCP Tools:
 
 Task Operations:
 • pjpd_put_task - Create or update a task (provide tag to create, id to update)
-• pjpd_list_tasks - List tasks, optionally including done tasks, up to a count
-• pjpd_mark_task_done - Mark one or more tasks as completed (moves them to tasks_done.txt)
+• pjpd_list_tasks - List tasks in one status (todo, done or verified), up to a count
+• pjpd_mark_task - Mark tasks done (moves to tasks_done.txt), verified (moves to tasks_verified.txt), or demote them to ideas
 • pjpd_reprioritize_task - Set the priority of one or more tasks without resending descriptions
 
 Idea Operations:

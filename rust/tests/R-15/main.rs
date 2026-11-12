@@ -4,8 +4,8 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_failure, response_json, server};
-use pjpd::server::PutTaskParams;
+use common::{assert_failure, create_task, list_tasks, mark_tasks, response_json, server};
+use pjpd::server::{ListTasksParams, PutTaskParams};
 use pjpd::validation::{
     validate_exactly_one_of_tag_or_id, validate_id, validate_range, validate_tag,
 };
@@ -60,4 +60,35 @@ async fn put_task_rejects_tag_and_id_together() {
         .await;
     let error = assert_failure(&response_json(&result));
     assert!(error.contains("not both"), "got: {error}");
+}
+
+// R-15: pjpd_mark_task with an unknown state fails and changes nothing.
+#[tokio::test]
+async fn mark_task_rejects_unknown_state() {
+    let (_dir, server) = server();
+    let id = create_task(&server, "x", "x", 5).await;
+
+    let error = assert_failure(&mark_tasks(&server, &[&id], "finished").await);
+    assert!(
+        error.contains("'done', 'verified' or 'idea'"),
+        "got: {error}"
+    );
+    assert_eq!(list_tasks(&server, "todo").await["total_tasks"], 1);
+}
+
+// R-15: pjpd_list_tasks with an unknown status filter fails.
+#[tokio::test]
+async fn list_tasks_rejects_unknown_status() {
+    let (_dir, server) = server();
+    let result = server
+        .pjpd_list_tasks(Parameters(ListTasksParams {
+            count: 20,
+            status: "all".to_string(),
+        }))
+        .await;
+    let error = assert_failure(&response_json(&result));
+    assert!(
+        error.contains("'todo', 'done' or 'verified'"),
+        "got: {error}"
+    );
 }

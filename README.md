@@ -60,10 +60,11 @@ All data is stored under `<cwd>/pjpd/`:
 
 ```
 <cwd>/pjpd/
-├── tasks.txt         # tasks still to do
-├── tasks_done.txt    # finished tasks (archive)
-├── ideas.txt         # all ideas
-└── bak/              # timestamped backups from atomic writes
+├── tasks.txt          # tasks still to do
+├── tasks_done.txt     # done tasks, awaiting review (archive)
+├── tasks_verified.txt # verified tasks (archive)
+├── ideas.txt          # all ideas
+└── bak/               # timestamped backups from atomic writes
 ```
 
 Records are separated by a `----` line. Each record is a header of `Key: value` lines, a blank line, then a free-form description.
@@ -132,11 +133,11 @@ See [README_API.md](README_API.md) for every MCP tool and prompt.
    pjpd_put_task(description="Update contact form", tag="form")      # priority defaults to 50
    ```
 
-2. **List tasks** (ToDo first, then by priority descending):
+2. **List tasks** by status (`todo` by default, `done` or `verified`), by priority descending:
    ```
    pjpd_list_tasks()
    pjpd_list_tasks(count=10)
-   pjpd_list_tasks(show_done=true)
+   pjpd_list_tasks(status="done")
    ```
 
 3. **Update a task** (provide `id`; omit `priority` to keep it):
@@ -149,9 +150,11 @@ See [README_API.md](README_API.md) for every MCP tool and prompt.
    pjpd_reprioritize_task(priority=90, task_ids=["design-ab12", "test-cd34"])
    ```
 
-5. **Mark tasks complete** (all-or-nothing; moves them to `tasks_done.txt`):
+5. **Mark tasks** done, verified, or back to an idea (all-or-nothing):
    ```
-   pjpd_mark_task_done(task_ids=["design-ab12", "form-cd34"])
+   pjpd_mark_task(task_ids=["design-ab12", "form-cd34"], state="done")      # moves to tasks_done.txt
+   pjpd_mark_task(task_ids=["design-ab12"], state="verified")               # moves to tasks_verified.txt
+   pjpd_mark_task(task_ids=["form-cd34"], state="idea")                     # becomes a new idea; task removed
    ```
 
 ### Ideas
@@ -186,7 +189,7 @@ pjpd-project/
 │   ├── src/
 │   │   ├── main.rs          # Entry point: serves over stdio, cwd is the project
 │   │   ├── server.rs        # MCP tools, parameters, response envelope
-│   │   ├── tasks.rs         # Task records and store (tasks.txt, tasks_done.txt)
+│   │   ├── tasks.rs         # Task records and store (tasks*.txt)
 │   │   ├── ideas.rs         # Idea records and store (ideas.txt)
 │   │   ├── record.rs        # Shared record shape: header parsing, IDs, timestamps
 │   │   ├── textrec.rs       # ----separated records and atomic writes

@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::ideas::IdeaStore;
-use crate::tasks::{Task, TaskPatch, TaskStore};
+use crate::tasks::{STATUS_DONE, STATUS_VERIFIED, Stage, Task, TaskPatch, TaskStore};
 use crate::validation;
 
 const INTRO_TEXT: &str = include_str!("../../resources/intro.txt");
@@ -26,8 +26,16 @@ const INTRO_TEXT: &str = include_str!("../../resources/intro.txt");
 /// Priority assigned to newly created tasks when the caller omits one.
 const DEFAULT_NEW_TASK_PRIORITY: i64 = 50;
 
+/// Score given to an idea made by demoting a task (D-21). The task's priority
+/// is not carried over: priority and score are distinct (D-4).
+const DEMOTED_IDEA_SCORE: i64 = 50;
+
 fn default_count() -> i64 {
     20
+}
+
+fn default_status() -> String {
+    "todo".to_string()
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -56,15 +64,43 @@ pub struct ListTasksParams {
     /// Maximum number of tasks to return. Defaults to 20.
     #[serde(default = "default_count")]
     pub count: i64,
-    /// Whether to include completed tasks. Defaults to False.
-    #[serde(default)]
-    pub show_done: bool,
+    /// Which tasks to list: "todo" (not yet done, the default), "done"
+    /// (implemented, awaiting review) or "verified" (reviewed by the user).
+    #[serde(default = "default_status")]
+    pub status: String,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
-pub struct MarkTaskDoneParams {
-    /// List of tag-based task IDs (format: `<tag>-XXXX`) to mark as done.
+pub struct MarkTaskParams {
+    /// List of tag-based task IDs (format: `<tag>-XXXX`) to mark.
     pub task_ids: Vec<String>,
+    /// "done" (an agent finished and committed the work; moves to
+    /// tasks_done.txt), "verified" (the user reviewed or tried it, from done
+    /// or straight from todo; moves to tasks_verified.txt), or "idea" (demote:
+    /// each task's description becomes a new idea and the task is removed).
+    pub state: String,
+}
+
+/// The target state of `pjpd_mark_task`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum MarkState {
+    Done,
+    Verified,
+    Idea,
+}
+
+impl MarkState {
+    fn parse(value: &str) -> Result<MarkState, String> {
+        [
+            ("done", MarkState::Done),
+            ("verified", MarkState::Verified),
+            ("idea", MarkState::Idea),
+        ]
+        .into_iter()
+        .find(|(name, _)| value.eq_ignore_ascii_case(name))
+        .map(|(_, state)| state)
+        .ok_or_else(|| format!("state must be one of 'done', 'verified' or 'idea' (got '{value}')"))
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -196,21 +232,23 @@ impl PjpdServer {
 
     fn list_tasks_impl(&self, params: ListTasksParams) -> Result<CallToolResult, String> {
         validation::validate_range(params.count, 1, 1000, "count")?;
+        let stage = Stage::from_filter(&params.status).ok_or_else(|| {
+            format!(
+                "status must be one of 'todo', 'done' or 'verified' (got '{}')",
+                params.status
+            )
+        })?;
 
+        // Filter by the file each task is saved to (R-16), so every task is
+        // listed under exactly one status value.
         let mut tasks = self.tasks().load();
-        if !params.show_done {
-            tasks.retain(|t| t.status.eq_ignore_ascii_case("todo"));
-        }
+        tasks.retain(|t| t.stage() == stage);
 
-        // Sort: ToDo before Done, then priority desc, then description.
-        let status_rank = |status: &str| match status {
-            "ToDo" => 0,
-            "Done" => 1,
-            _ => 2,
-        };
+        // Sort: status ToDo before other todo-file statuses, then priority
+        // desc, then description.
         tasks.sort_by_key(|t| {
             (
-                status_rank(&t.status),
+                t.status != "ToDo",
                 std::cmp::Reverse(t.priority),
                 t.description.to_lowercase(),
             )
@@ -248,6 +286,24 @@ impl PjpdServer {
         Ok(mcp_success(Value::Object(result)))
     }
 
+    /// Failure naming the listed IDs that match no task, if any (D-16).
+    fn missing_tasks_failure(&self, task_ids: &[String]) -> Option<CallToolResult> {
+        let known: std::collections::HashSet<String> =
+            self.tasks().load().into_iter().map(|t| t.id).collect();
+        let missing: Vec<String> = task_ids
+            .iter()
+            .filter(|id| !known.contains(*id))
+            .cloned()
+            .collect();
+        (!missing.is_empty()).then(|| {
+            mcp_failure(&format!(
+                "Tasks not found: {}. No tasks were modified. \
+                 Use pjpd_list_tasks with status \"todo\", \"done\" or \"verified\" to see task IDs.",
+                python_list_repr(&missing)
+            ))
+        })
+    }
+
     /// All-or-nothing bulk task update: if any ID is missing, nothing is modified.
     fn bulk_update_tasks(
         &self,
@@ -255,20 +311,11 @@ impl PjpdServer {
         patch: &TaskPatch,
         message: &str,
     ) -> Result<CallToolResult, String> {
-        let store = self.tasks();
-        let missing: Vec<String> = task_ids
-            .iter()
-            .filter(|id| store.get(id).is_none())
-            .cloned()
-            .collect();
-        if !missing.is_empty() {
-            return Ok(mcp_failure(&format!(
-                "Tasks not found: {}. No tasks were modified. \
-                 Use pjpd_list_tasks(show_done=True) to see all task IDs.",
-                python_list_repr(&missing)
-            )));
+        if let Some(failure) = self.missing_tasks_failure(task_ids) {
+            return Ok(failure);
         }
 
+        let store = self.tasks();
         let updated = task_ids
             .iter()
             .map(|id| {
@@ -287,6 +334,68 @@ impl PjpdServer {
         );
         result.insert("message".to_string(), json!(message));
         Ok(mcp_success(Value::Object(self.with_warning(result))))
+    }
+
+    /// Demote tasks to ideas (D-21), all-or-nothing: each task's description
+    /// becomes a new idea with the task's tag and DEMOTED_IDEA_SCORE, then the
+    /// tasks are removed. Ideas are saved first, so a failure in between
+    /// leaves a duplicate rather than losing the text (G-1).
+    fn demote_tasks(&self, task_ids: &[String]) -> Result<CallToolResult, String> {
+        if let Some(failure) = self.missing_tasks_failure(task_ids) {
+            return Ok(failure);
+        }
+
+        let store = self.tasks();
+        let entries: Vec<(String, String)> = store
+            .load()
+            .into_iter()
+            .filter(|t| task_ids.contains(&t.id))
+            .map(|t| (t.description, t.tag))
+            .collect();
+        let ideas = self.ideas();
+        let added = ideas.add_all(&entries, DEMOTED_IDEA_SCORE)?;
+        store.remove(task_ids)?;
+
+        let mut result = Map::new();
+        result.insert(
+            "ideas".to_string(),
+            json!(added.iter().map(|i| i.to_json()).collect::<Vec<Value>>()),
+        );
+        result.insert(
+            "project_file".to_string(),
+            json!(ideas.ideas_file.to_string_lossy()),
+        );
+        result.insert(
+            "message".to_string(),
+            json!(format!(
+                "Demoted {} task(s) to ideas: {}",
+                added.len(),
+                python_list_repr(task_ids)
+            )),
+        );
+        Ok(mcp_success(Value::Object(self.with_warning(result))))
+    }
+
+    fn mark_task_impl(&self, params: MarkTaskParams) -> Result<CallToolResult, String> {
+        let state = MarkState::parse(&params.state)?;
+        validation::validate_id_list(&params.task_ids, "Task ID")?;
+        let count = params.task_ids.len();
+        let set_status = |status: &str, message: String| {
+            let patch = TaskPatch {
+                description: None,
+                priority: None,
+                status: Some(status.to_string()),
+            };
+            self.bulk_update_tasks(&params.task_ids, &patch, &message)
+        };
+        match state {
+            MarkState::Done => set_status(STATUS_DONE, format!("Marked {count} task(s) as done")),
+            MarkState::Verified => set_status(
+                STATUS_VERIFIED,
+                format!("Marked {count} task(s) as verified"),
+            ),
+            MarkState::Idea => self.demote_tasks(&params.task_ids),
+        }
     }
 
     fn list_ideas_impl(&self, params: ListIdeasParams) -> Result<CallToolResult, String> {
@@ -403,7 +512,7 @@ impl PjpdServer {
 
     #[tool(
         name = "pjpd_list_tasks",
-        description = "List tasks with optional filtering. Tasks are sorted ToDo before Done, then by priority descending."
+        description = "List tasks in one status: \"todo\" (the default), \"done\" or \"verified\". Sorted by priority descending."
     )]
     pub async fn pjpd_list_tasks(
         &self,
@@ -414,27 +523,15 @@ impl PjpdServer {
     }
 
     #[tool(
-        name = "pjpd_mark_task_done",
-        description = "Mark one or more tasks as completed. All IDs must exist or nothing is changed."
+        name = "pjpd_mark_task",
+        description = "Move one or more tasks to a new state: \"done\" (you finished and committed the work), \"verified\" (only when the user says they reviewed or tried it), or \"idea\" (demote: the task's description becomes a new idea and the task is removed). All IDs must exist or nothing is changed."
     )]
-    pub async fn pjpd_mark_task_done(
+    pub async fn pjpd_mark_task(
         &self,
-        Parameters(params): Parameters<MarkTaskDoneParams>,
+        Parameters(params): Parameters<MarkTaskParams>,
     ) -> CallToolResult {
-        let run = || -> Result<CallToolResult, String> {
-            validation::validate_id_list(&params.task_ids, "Task ID")?;
-            let done = TaskPatch {
-                description: None,
-                priority: None,
-                status: Some(crate::tasks::STATUS_DONE.to_string()),
-            };
-            self.bulk_update_tasks(
-                &params.task_ids,
-                &done,
-                &format!("Marked {} task(s) as done", params.task_ids.len()),
-            )
-        };
-        run().unwrap_or_else(|e| mcp_failure(&format!("Error marking tasks as done: {e}")))
+        self.mark_task_impl(params)
+            .unwrap_or_else(|e| mcp_failure(&format!("Error marking tasks: {e}")))
     }
 
     #[tool(
@@ -468,7 +565,7 @@ impl PjpdServer {
                 "Error reprioritizing tasks: {e}. \
                  Possible fixes: 1) Ensure each task_id matches <tag>-XXXX format (e.g. 'task-ab12'), \
                  2) Pass priority as an integer (0-100 typical, higher allowed), \
-                 3) Use pjpd_list_tasks(show_done=True) to confirm the task IDs exist."
+                 3) Use pjpd_list_tasks with status \"todo\", \"done\" or \"verified\" to confirm the task IDs exist."
             ))
         })
     }

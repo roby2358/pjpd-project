@@ -51,8 +51,9 @@ server holds only paths.
 | Field | Type | Notes |
 |---|---|---|
 | project_dir | path | The working directory when the server started |
-| tasks_file | path | `<project_dir>/pjpd/tasks.txt` — tasks not Done |
+| tasks_file | path | `<project_dir>/pjpd/tasks.txt` — tasks neither Done nor Verified |
 | done_tasks_file | path | `<project_dir>/pjpd/tasks_done.txt` — Done tasks |
+| verified_tasks_file | path | `<project_dir>/pjpd/tasks_verified.txt` — Verified tasks |
 | ideas_file | path | `<project_dir>/pjpd/ideas.txt` — all ideas |
 | bak dir | path | `<project_dir>/pjpd/bak/` — backups made by atomic writes |
 
@@ -64,7 +65,7 @@ server holds only paths.
 | id | string | `<tag>-XXXX`; salvaged records may carry the old `XX-XXXX-XX` form |
 | tag | string | Derived from `id` at load; never written to disk or returned by tools |
 | priority | integer | Higher = more urgent |
-| status | string | Open string. `ToDo` and `Done` are the values the tools write; others survive round trips |
+| status | string | Open string. `ToDo`, `Done` and `Verified` are the values the tools write; others survive round trips |
 | description | string | Free text, may span lines; separator-shaped lines are stored indented |
 | created | timestamp? | Set once, the first time the record is stamped |
 | updated | timestamp? | Refreshed on every write of this record |
@@ -82,6 +83,11 @@ server holds only paths.
 | updated | timestamp? | As for Task |
 
 An idea has no status field. "Done" is derived: the description starts with `(Done)`.
+
+### Stage
+*Serves:* G-3. Which task file a task belongs to, derived from its status by exact match:
+`Done` → done, `Verified` → verified, anything else → todo. Saving and the
+`pjpd_list_tasks` status filter both use it, so every task lists under exactly one filter.
 
 ### TaskPatch
 *Serves:* G-3. A partial update to one task; absent fields stay unchanged.
@@ -107,9 +113,12 @@ An idea has no status field. "Done" is derived: the description starts with `(Do
 
 - **Stateless server.** Every operation reloads the files it touches; nothing is cached
   between calls. Hand edits made between calls are always seen. *Serves:* G-1, G-2.
-- **Done split.** After any task write, `tasks.txt` holds exactly the tasks whose status is
-  not `Done` and `tasks_done.txt` exactly those whose status is `Done` (exact match). Task
-  load reads both files. *Serves:* G-3.
+- **Stage split.** After any task write, `tasks_done.txt` holds exactly the tasks whose
+  status is `Done`, `tasks_verified.txt` exactly those whose status is `Verified`, and
+  `tasks.txt` all the rest (exact match; see Stage). Task load reads all three files.
+  *Serves:* G-3.
+- **Tasks and ideas are unlinked.** No record refers to another; demoting a task to an idea
+  copies its description and leaves no cross-reference. *Serves:* G-4.
 - **Round trip.** For any record with an ID, render then parse yields an equal record.
   *Serves:* G-1, G-2.
 - **Header isolation.** No line of a description is ever read back as a property, whatever
@@ -133,13 +142,15 @@ An idea has no status field. "Done" is derived: the description starts with `(Do
 **Layout**
 ```
 <cwd>/pjpd/
-├── tasks.txt         # tasks not Done
-├── tasks_done.txt    # Done tasks (archive; no backups)
-├── ideas.txt         # all ideas
-└── bak/              # timestamped backups from atomic writes
+├── tasks.txt          # tasks neither Done nor Verified
+├── tasks_done.txt     # Done tasks (archive; no backups)
+├── tasks_verified.txt # Verified tasks (archive; no backups)
+├── ideas.txt          # all ideas
+└── bak/               # timestamped backups from atomic writes
 ```
 Files are UTF-8. `pjpd/` and `tasks.txt` are created on the first task add; `ideas.txt` on
-the first idea save; `tasks_done.txt` the first time a save has Done tasks.
+the first idea save; `tasks_done.txt` and `tasks_verified.txt` the first time a save has
+tasks of that stage.
 
 **Records.** A file is a list of records separated by `RECORD_SEPARATOR` on its own line.
 On read, any line of `SEPARATOR_MIN_HYPHENS` or more hyphens, optionally followed by
@@ -177,7 +188,8 @@ hyphen, and `ID_SUFFIX_LEN` characters from `ID_ALPHABET` (a–z and 2–9 witho
 generated only by salvage.
 
 **Backups.** Before replacing `tasks.txt` or `ideas.txt`, the old file is moved to
-`bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). `tasks_done.txt` is replaced without a backup.
+`bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). `tasks_done.txt` and `tasks_verified.txt`
+are replaced without a backup.
 
 ---
 
@@ -249,17 +261,18 @@ called on: task add, task patch, idea add, idea update, idea mark done
 write_atomic(path, text):          # tasks.txt, ideas.txt
     if path exists: mkdir bak/; rename path -> bak/<stem>.<timestamp>.<ext>
     atomic_replace(path, text)
-write_atomic_no_backup(path, text): atomic_replace(path, text)   # tasks_done.txt
+write_atomic_no_backup(path, text): atomic_replace(path, text)   # tasks_done.txt, tasks_verified.txt
 atomic_replace(path, text): mkdir parent; write sibling temp file; rename over path
 ```
 
 ### Save tasks
 *Serves:* G-1, G-3. [D]
 ```
-todo = tasks where status != "Done", sorted by priority desc (stable)
-done = tasks where status == "Done", sorted by priority desc (stable)
-write_atomic(tasks_file, render(todo))
-if done non-empty or done_tasks_file exists: write_atomic_no_backup(done_tasks_file, render(done))
+stage(task) = status == "Done" ? done : status == "Verified" ? verified : todo
+group(s) = tasks where stage == s, sorted by priority desc (stable)
+write_atomic(tasks_file, render(group(todo)))
+for (s, file) in [(done, done_tasks_file), (verified, verified_tasks_file)]:
+    if group(s) non-empty or file exists: write_atomic_no_backup(file, render(group(s)))
 ```
 
 ### Save ideas
@@ -298,6 +311,18 @@ bulk(ids, patch):
     for id in ids: patch_task(id, patch)        # one load and save per id
 ```
 
+### Demote tasks
+*Serves:* G-1, G-3. [D]
+```
+demote(ids):
+    missing = ids not found in load_tasks()
+    if missing: fail "Tasks not found: [...]. No tasks were modified." ; no change
+    picked = tasks in load order whose id is in ids
+    add ideas {id: task.tag + "-" + random(ID_SUFFIX_LEN), score: DEMOTED_IDEA_SCORE,
+               description: indent_separators(task.description)} for each; stamp; one save_ideas
+    then save_tasks(tasks without picked)       # ideas first: a failure between leaves a duplicate, never a loss
+```
+
 ### Mark idea done
 *Serves:* G-3. [D]
 ```
@@ -326,6 +351,8 @@ exactly one of tag, id                         (put_task, put_idea)
 priority, score: VALUE_MIN..VALUE_MAX         (score required on every put_idea)
 count: COUNT_MIN..COUNT_MAX
 id lists: non-empty, every id valid
+state: done | verified | idea, case-insensitive      (mark_task)
+status: todo | done | verified, case-insensitive     (list_tasks)
 ```
 
 ---
@@ -344,6 +371,7 @@ Every constant, by name. The rest of the doc set refers to these names, never th
 | Name | Value | Unit | Code | Decision |
 |---|---|---|---|---|
 | DEFAULT_NEW_TASK_PRIORITY | 50 | priority | `server.rs` const | D-3 |
+| DEMOTED_IDEA_SCORE | 50 | score | `server.rs` const | D-21 |
 | DEFAULT_LOADED_PRIORITY | 1 | priority / score | literal `unwrap_or(1)` in `tasks.rs`, `ideas.rs` | D-8 |
 | NUMBER_WIDTH | 4 | characters | literal `{:4}` in `to_text` | D-2 |
 | VALUE_MIN, VALUE_MAX | 0, 9999 | priority / score | literals in `server.rs` | D-5 |
@@ -372,8 +400,8 @@ call, what format to use); nothing changes. Unexpected errors are wrapped as
 | Command (args) | Legal when | Effect | Success result |
 |---|---|---|---|
 | `pjpd_put_task(description, tag?, id?, priority?)` | Validation passes; with `id`, the task exists | `tag` → Create task with `priority` or DEFAULT_NEW_TASK_PRIORITY. `id` → Patch task: description replaced, priority replaced only if given | Task fields (id, priority, status, description, created, updated), `message` |
-| `pjpd_list_tasks(count = DEFAULT_COUNT, show_done = false)` | count in range | None. Filter: status equals `todo` case-insensitively unless `show_done`. Sort: `ToDo`, then `Done`, then other statuses; priority desc; description lowercased. Truncate to `count` | `tasks` (id, priority, status, description), `total_tasks` (number returned), `info` when truncated |
-| `pjpd_mark_task_done(task_ids)` | Every ID valid and existing | Bulk task update with status `Done` (moves each to `tasks_done.txt`) | `tasks` (full task fields), `message` |
+| `pjpd_list_tasks(count = DEFAULT_COUNT, status = "todo")` | count in range; status is `todo`, `done` or `verified` | None. Filter: tasks whose Stage equals `status`. Sort: status `ToDo` before other statuses; priority desc; description lowercased. Truncate to `count` | `tasks` (id, priority, status, description), `total_tasks` (number returned), `info` when truncated |
+| `pjpd_mark_task(task_ids, state)` | state is `done`, `verified` or `idea`; every ID valid and existing | `done` → Bulk task update with status `Done` (moves each to `tasks_done.txt`). `verified` → Bulk task update with status `Verified` (moves each to `tasks_verified.txt`), from any stage. `idea` → Demote tasks | `done`/`verified`: `tasks` (full task fields), `message`. `idea`: `ideas` (full idea fields), `project_file` naming `ideas.txt`, `message` |
 | `pjpd_reprioritize_task(priority, task_ids)` | priority in range; every ID valid and existing | Bulk task update with the priority | `tasks` (full task fields), `message` |
 | `pjpd_put_idea(score, description, tag?, id?)` | Validation passes; with `id`, the idea exists | `tag` → create idea. `id` → replace description and score | Idea fields (id, score, description, created, updated), `message` |
 | `pjpd_list_ideas(count = DEFAULT_COUNT)` | count in range | None. Save-ideas order, truncated to `count` | `ideas` (full idea fields), `total_ideas` (number returned), `message` |

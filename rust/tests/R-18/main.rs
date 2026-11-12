@@ -1,25 +1,18 @@
-//! R-18: `pjpd_mark_task_done` sets status `Done` and moves each task to
-//! `tasks_done.txt`; done tasks are hidden by default and shown with `show_done`.
+//! R-18: `pjpd_mark_task` with state `done` sets status `Done` and moves each
+//! task to `tasks_done.txt`; done tasks list under status `done`, not `todo`.
 
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_success, create_task, response_json, server};
-use pjpd::server::{ListTasksParams, MarkTaskDoneParams};
-use rmcp::handler::server::wrapper::Parameters;
+use common::{assert_success, create_task, list_tasks, mark_tasks, server};
 
-// R-18: a marked task is Done, moves files, and is visible only with show_done.
+// R-18: a marked task is Done, moves files, and lists only under "done".
 #[tokio::test]
 async fn mark_task_done_moves_record_to_done_file() {
     let (dir, server) = server();
     let id = create_task(&server, "finish me", "done", 5).await;
 
-    let result = server
-        .pjpd_mark_task_done(Parameters(MarkTaskDoneParams {
-            task_ids: vec![id.clone()],
-        }))
-        .await;
-    let body = assert_success(&response_json(&result));
+    let body = assert_success(&mark_tasks(&server, &[&id], "done").await);
     assert_eq!(body["message"], "Marked 1 task(s) as done");
     assert_eq!(body["tasks"][0]["status"], "Done");
     assert_eq!(body["tasks"][0]["priority"], 5);
@@ -29,22 +22,17 @@ async fn mark_task_done_moves_record_to_done_file() {
     assert!(!todo.contains(&id));
     assert!(done.contains(&id));
 
-    let hidden = assert_success(&response_json(
-        &server
-            .pjpd_list_tasks(Parameters(ListTasksParams {
-                count: 20,
-                show_done: false,
-            }))
-            .await,
-    ));
-    assert_eq!(hidden["total_tasks"], 0);
-    let shown = assert_success(&response_json(
-        &server
-            .pjpd_list_tasks(Parameters(ListTasksParams {
-                count: 20,
-                show_done: true,
-            }))
-            .await,
-    ));
-    assert_eq!(shown["total_tasks"], 1);
+    assert_eq!(list_tasks(&server, "todo").await["total_tasks"], 0);
+    assert_eq!(list_tasks(&server, "done").await["total_tasks"], 1);
+    assert_eq!(list_tasks(&server, "verified").await["total_tasks"], 0);
+}
+
+// R-18: the state value is matched case-insensitively.
+#[tokio::test]
+async fn mark_state_is_case_insensitive() {
+    let (_dir, server) = server();
+    let id = create_task(&server, "finish me", "done", 5).await;
+
+    assert_success(&mark_tasks(&server, &[&id], "Done").await);
+    assert_eq!(list_tasks(&server, "done").await["total_tasks"], 1);
 }

@@ -1,5 +1,6 @@
-//! Task records and the store backing pjpd/tasks.txt (ToDo) and
-//! pjpd/tasks_done.txt (Done archive, written without bak/ backups).
+//! Task records and the store backing pjpd/tasks.txt (ToDo),
+//! pjpd/tasks_done.txt (Done) and pjpd/tasks_verified.txt (Verified); the two
+//! archives are written without bak/ backups (D-6).
 
 use std::cmp::Reverse;
 use std::fs;
@@ -13,6 +14,30 @@ use crate::{ids, textrec};
 
 pub const STATUS_TODO: &str = "ToDo";
 pub const STATUS_DONE: &str = "Done";
+pub const STATUS_VERIFIED: &str = "Verified";
+
+/// Which task file a task is saved to, decided by an exact status match
+/// (R-10). Any status other than `Done` or `Verified` is a todo task.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stage {
+    Todo,
+    Done,
+    Verified,
+}
+
+impl Stage {
+    /// Parse a list filter value (`todo`, `done`, `verified`), case-insensitively.
+    pub fn from_filter(value: &str) -> Option<Stage> {
+        [
+            ("todo", Stage::Todo),
+            ("done", Stage::Done),
+            ("verified", Stage::Verified),
+        ]
+        .into_iter()
+        .find(|(name, _)| value.eq_ignore_ascii_case(name))
+        .map(|(_, stage)| stage)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Task {
@@ -56,8 +81,12 @@ impl Task {
         })
     }
 
-    pub fn is_done(&self) -> bool {
-        self.status == STATUS_DONE
+    pub fn stage(&self) -> Stage {
+        match self.status.as_str() {
+            STATUS_DONE => Stage::Done,
+            STATUS_VERIFIED => Stage::Verified,
+            _ => Stage::Todo,
+        }
     }
 
     /// Set created timestamp if not already set, and refresh updated.
@@ -127,6 +156,7 @@ pub struct TaskStore {
     pub project_dir: PathBuf,
     pub tasks_file: PathBuf,
     pub done_tasks_file: PathBuf,
+    pub verified_tasks_file: PathBuf,
 }
 
 impl TaskStore {
@@ -136,6 +166,7 @@ impl TaskStore {
             project_dir: project_dir.to_path_buf(),
             tasks_file: pjpd_dir.join("tasks.txt"),
             done_tasks_file: pjpd_dir.join("tasks_done.txt"),
+            verified_tasks_file: pjpd_dir.join("tasks_verified.txt"),
         }
     }
 
@@ -157,35 +188,48 @@ impl TaskStore {
         ))
     }
 
-    /// Load all tasks from both the todo and done files.
+    /// Load all tasks from the todo, done and verified files.
     pub fn load(&self) -> Vec<Task> {
-        [&self.tasks_file, &self.done_tasks_file]
-            .iter()
-            .flat_map(|path| textrec::read_records(path))
-            .filter_map(|record| Task::from_text(&record))
-            .collect()
+        [
+            &self.tasks_file,
+            &self.done_tasks_file,
+            &self.verified_tasks_file,
+        ]
+        .iter()
+        .flat_map(|path| textrec::read_records(path))
+        .filter_map(|record| Task::from_text(&record))
+        .collect()
     }
 
-    /// Save todo tasks to tasks.txt (with backup) and done tasks to
-    /// tasks_done.txt (no backup), each sorted by priority descending.
+    /// Save todo tasks to tasks.txt (with backup), done tasks to
+    /// tasks_done.txt and verified tasks to tasks_verified.txt (no backup),
+    /// each sorted by priority descending. An archive file is written only
+    /// when it has tasks or already exists.
     fn save(&self, tasks: &[Task]) -> io::Result<()> {
-        let sorted_by_priority = |keep_done: bool| {
-            let mut group: Vec<&Task> = tasks.iter().filter(|t| t.is_done() == keep_done).collect();
+        let render_stage = |stage: Stage| {
+            let mut group: Vec<&Task> = tasks.iter().filter(|t| t.stage() == stage).collect();
             group.sort_by_key(|t| Reverse(t.priority));
-            group
+            (
+                group.is_empty(),
+                textrec::join_records(group.iter().map(|t| t.to_text())),
+            )
         };
 
-        let todo = sorted_by_priority(false);
-        let done = sorted_by_priority(true);
-
-        let todo_content = textrec::join_records(todo.iter().map(|t| t.to_text()));
+        let (_, todo_content) = render_stage(Stage::Todo);
         textrec::write_atomic(&self.tasks_file, &todo_content)?;
 
-        if !done.is_empty() || self.done_tasks_file.exists() {
-            let done_content = textrec::join_records(done.iter().map(|t| t.to_text()));
-            textrec::write_atomic_no_backup(&self.done_tasks_file, &done_content)?;
-        }
-        Ok(())
+        [
+            (Stage::Done, &self.done_tasks_file),
+            (Stage::Verified, &self.verified_tasks_file),
+        ]
+        .into_iter()
+        .try_for_each(|(stage, path)| {
+            let (empty, content) = render_stage(stage);
+            if empty && !path.exists() {
+                return Ok(());
+            }
+            textrec::write_atomic_no_backup(path, &content)
+        })
     }
 
     /// Add a new task, creating the pjpd directory and tasks file if needed.
@@ -225,6 +269,17 @@ impl TaskStore {
         let updated = task.clone();
         self.save(&tasks).map_err(|e| e.to_string())?;
         Ok(Some(updated))
+    }
+
+    /// Remove every task whose ID is listed, in one load and one save, and
+    /// return the removed tasks in file order. Unknown IDs are ignored.
+    pub fn remove(&self, task_ids: &[String]) -> Result<Vec<Task>, String> {
+        let (removed, kept): (Vec<Task>, Vec<Task>) = self
+            .load()
+            .into_iter()
+            .partition(|t| task_ids.contains(&t.id));
+        self.save(&kept).map_err(|e| e.to_string())?;
+        Ok(removed)
     }
 
     fn ensure_files(&self) -> io::Result<()> {

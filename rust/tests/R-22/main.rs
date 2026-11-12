@@ -4,7 +4,7 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_success, response_json, server};
+use common::{assert_success, backups_of, clear_backups, response_json, server};
 use pjpd::ideas::IdeaStore;
 use pjpd::server::{ListIdeasParams, MarkIdeaDoneParams, PutIdeaParams};
 use rmcp::handler::server::wrapper::Parameters;
@@ -77,4 +77,29 @@ fn mark_done_does_not_double_prefix() {
 
     let reloaded = store.load();
     assert_eq!(reloaded[0].description, "(Done) once only");
+}
+
+// R-22: marking several ideas done is one load and one save, so it leaves
+// exactly one ideas.txt backup holding the file as it was before (D-16).
+#[tokio::test]
+async fn batch_saves_ideas_file_once() {
+    let (dir, server) = server();
+    let store = IdeaStore::new(dir.path());
+    let ids: Vec<String> = ["one", "two", "three"]
+        .iter()
+        .map(|tag| store.add(tag, 5, tag).unwrap().id)
+        .collect();
+
+    let before = std::fs::read_to_string(dir.path().join("pjpd/ideas.txt")).unwrap();
+    clear_backups(&dir);
+    let body = assert_success(&response_json(
+        &server
+            .pjpd_mark_idea_done(Parameters(MarkIdeaDoneParams {
+                idea_ids: ids,
+                verbose: false,
+            }))
+            .await,
+    ));
+    assert_eq!(body["ideas"].as_array().unwrap().len(), 3);
+    assert_eq!(backups_of(&dir, "ideas"), vec![before]);
 }

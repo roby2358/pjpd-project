@@ -4,6 +4,14 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Bulk updates do one load and one save
+`pjpd_mark_task` (`done`, `verified`), `pjpd_reprioritize_task` and `pjpd_mark_idea_done`
+used to patch each listed ID with its own load and save, so a batch of N left N backups
+in `bak/` and a disk error partway through left the batch half applied. Each batch is now
+applied in memory and written with one save (`TaskStore::update_all`,
+`IdeaStore::mark_done_all`), leaving one backup (D-16). R-17 and R-22 extended, each with
+a new test.
+
 ### 2026-11-12 — Parameter schemas advertise validation bounds
 The tool parameter JSON schemas carried types and descriptions only; the range and length
 bounds that request validation enforces had been lost in the Rust port. They are now

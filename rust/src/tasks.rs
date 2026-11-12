@@ -259,17 +259,33 @@ impl TaskStore {
 
     /// Apply a patch to an existing task. Returns Ok(None) when the ID is unknown.
     pub fn update(&self, task_id: &str, patch: &TaskPatch) -> Result<Option<Task>, String> {
+        Ok(self
+            .update_all(&[task_id.to_string()], patch)?
+            .into_iter()
+            .next())
+    }
+
+    /// Apply one patch to every listed task in one load and one save (D-16),
+    /// returning the updated tasks in the order their IDs are listed. Unknown
+    /// IDs are ignored; when none match, nothing is written.
+    pub fn update_all(&self, task_ids: &[String], patch: &TaskPatch) -> Result<Vec<Task>, String> {
         let mut tasks = self.load();
-        let Some(task) = tasks.iter_mut().find(|t| t.id == task_id) else {
-            return Ok(None);
-        };
-
-        patch.apply_to(task);
-        task.stamp();
-
-        let updated = task.clone();
+        let touched = tasks
+            .iter_mut()
+            .filter(|t| task_ids.contains(&t.id))
+            .map(|task| {
+                patch.apply_to(task);
+                task.stamp();
+            })
+            .count();
+        if touched == 0 {
+            return Ok(Vec::new());
+        }
         self.save(&tasks).map_err(|e| e.to_string())?;
-        Ok(Some(updated))
+        Ok(task_ids
+            .iter()
+            .filter_map(|id| tasks.iter().find(|t| &t.id == id).cloned())
+            .collect())
     }
 
     /// Remove every task whose ID is listed, in one load and one save, and

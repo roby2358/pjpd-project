@@ -4,7 +4,12 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_failure, create_task, list_tasks, mark_tasks, server};
+use common::{
+    assert_failure, assert_success, backups_of, clear_backups, create_task, list_tasks, mark_tasks,
+    response_json, server,
+};
+use pjpd::server::ReprioritizeTaskParams;
+use rmcp::handler::server::wrapper::Parameters;
 
 // R-17: pjpd_mark_task with one real and one unknown ID changes nothing, for
 // every state.
@@ -26,4 +31,38 @@ async fn bulk_operations_are_all_or_nothing() {
         assert_eq!(body["total_tasks"], 1, "state {state}");
         assert!(!dir.path().join("pjpd/ideas.txt").exists());
     }
+}
+
+// R-17: a batch is one load and one save, so it leaves exactly one tasks.txt
+// backup, holding the file as it was before the batch (D-16). Backup names
+// are per second, so per-ID saves would leave either several backups or one
+// holding a half-applied batch.
+#[tokio::test]
+async fn batch_saves_tasks_file_once() {
+    let (dir, server) = server();
+    let ids = [
+        create_task(&server, "one", "one", 5).await,
+        create_task(&server, "two", "two", 6).await,
+        create_task(&server, "three", "three", 7).await,
+    ];
+    let tasks_file = dir.path().join("pjpd/tasks.txt");
+
+    let before = std::fs::read_to_string(&tasks_file).unwrap();
+    clear_backups(&dir);
+    assert_success(&response_json(
+        &server
+            .pjpd_reprioritize_task(Parameters(ReprioritizeTaskParams {
+                priority: 50,
+                task_ids: ids.to_vec(),
+                verbose: false,
+            }))
+            .await,
+    ));
+    assert_eq!(backups_of(&dir, "tasks"), vec![before]);
+
+    let before = std::fs::read_to_string(&tasks_file).unwrap();
+    clear_backups(&dir);
+    let id_refs: Vec<&str> = ids.iter().map(String::as_str).collect();
+    assert_success(&mark_tasks(&server, &id_refs, "done").await);
+    assert_eq!(backups_of(&dir, "tasks"), vec![before]);
 }

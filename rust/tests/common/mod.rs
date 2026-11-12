@@ -83,3 +83,30 @@ pub async fn list_tasks(server: &PjpdServer, status: &str) -> Value {
         .await;
     assert_success(&response_json(&result))
 }
+
+/// Delete `pjpd/bak/` so a test can count the backups one call makes.
+pub fn clear_backups(dir: &TempDir) {
+    let bak_dir = dir.path().join("pjpd/bak");
+    if bak_dir.exists() {
+        std::fs::remove_dir_all(bak_dir).unwrap();
+    }
+}
+
+/// Contents of every `pjpd/bak/` backup of the file with this stem
+/// (e.g. "tasks" for tasks.txt).
+pub fn backups_of(dir: &TempDir, stem: &str) -> Vec<String> {
+    let bak_dir = dir.path().join("pjpd/bak");
+    if !bak_dir.exists() {
+        return Vec::new();
+    }
+    std::fs::read_dir(bak_dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(&format!("{stem}.")))
+        })
+        .map(|p| std::fs::read_to_string(p).unwrap())
+        .collect()
+}

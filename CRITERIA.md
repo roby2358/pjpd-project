@@ -26,12 +26,12 @@ as in the ONTOLOGY Numbers table.
 | R-14 | `pjpd_put_task` with `id` | Description replaced; priority replaced only when given; status unchanged; an unknown ID fails naming `pjpd_list_tasks` and changes nothing | automated |
 | R-15 | Tool calls with bad arguments | Empty description, bad tag, bad ID, both or neither of tag/id, priority or score outside VALUE_MIN..VALUE_MAX, count outside COUNT_MIN..COUNT_MAX, an empty ID list, a `pjpd_mark_task` state other than `done`/`verified`/`idea`, or a `pjpd_list_tasks` status other than `todo`/`done`/`verified` each fail with a message and change nothing | automated |
 | R-16 | `pjpd_list_tasks` | `status` (case-insensitive, default `todo`) lists exactly the tasks saved to that file: `todo` → `tasks.txt`, `done` → `tasks_done.txt`, `verified` → `tasks_verified.txt`; a hand-edited status is matched case-insensitively; sorted status `ToDo` (any case) before other statuses, then priority desc, then description lowercased; truncated to `count` with `info` naming returned and total; `total_tasks` is the number matching before truncation. By default each task is id, priority, status and `summary` (the description's first line, cut to SUMMARY_MAX_CHARS characters, `...` when text was left out), with no description or timestamps; with `verbose: true` the full record including `created` and `updated` | automated |
-| R-17 | A task ID list with any unknown ID (`pjpd_mark_task` in every state, `pjpd_reprioritize_task`) | Fails naming the missing IDs and "No tasks were modified"; no task changes | automated |
+| R-17 | A task ID list (`pjpd_mark_task` in every state, `pjpd_reprioritize_task`) | Any unknown ID: fails naming the missing IDs and "No tasks were modified"; no task changes. All IDs known (states `done`, `verified`, and reprioritize): one save, leaving exactly one `tasks.txt` backup, holding the file as it was before the batch | automated |
 | R-18 | `pjpd_mark_task` with state `done` and known IDs | Each task's status becomes `Done` and it moves to `tasks_done.txt`; listed under status `done` only; the state is matched case-insensitively | automated |
 | R-19 | `pjpd_reprioritize_task` with known IDs | Only priority (and `updated`) change | automated |
 | R-20 | `pjpd_put_idea` | `tag` creates an idea with the score; `id` replaces description and score; an unknown ID fails naming `pjpd_list_ideas` and changes nothing | automated |
 | R-21 | `pjpd_list_ideas` | Ideas in save order (active first, score desc), truncated to `count` with `info` naming returned and total; `total_ideas` is the number before truncation. By default each idea is id, score and `summary` (as in R-16); with `verbose: true` the full record including `created` and `updated` | automated |
-| R-22 | `pjpd_mark_idea_done` | First description line gets the `(Done) ` prefix once (never doubled), score unchanged; any unknown ID fails and no idea changes | automated |
+| R-22 | `pjpd_mark_idea_done` | First description line gets the `(Done) ` prefix once (never doubled), score unchanged; any unknown ID fails and no idea changes; several known IDs are one save, leaving exactly one `ideas.txt` backup, holding the file as it was before | automated |
 | R-23 | `pjpd/<dir-name>.txt` exists | Task tool results include `warning`; idea tools never do; no warning when that file is `tasks.txt` itself | automated |
 | R-24 | Any tool call | Response is `{success, result, error}`; every success result includes `project_file` with the full path of the file operated on; failures have `result: ""` | automated |
 | R-25 | `pjpd_mark_task` with state `verified` and known IDs, from todo or done | Each task's status becomes `Verified` and it moves to `tasks_verified.txt`; listed under status `verified` only | automated |
@@ -77,7 +77,7 @@ an Instrument cell is not an allowed value.
 - R-14: status unchanged on update, the unknown-ID message naming `pjpd_list_tasks`, and "changes nothing" are untested.
 - R-15: through the tools only tag-and-id-together is tested; the other cases are checked on the validation functions. Empty description, empty ID list, and "change nothing" are untested.
 - R-16: the description tiebreak is untested.
-- R-17: the unknown-ID failure is tested only for `pjpd_mark_task`, not `pjpd_reprioritize_task`.
+- R-17: the unknown-ID failure is tested only for `pjpd_mark_task`, not `pjpd_reprioritize_task`; the one-save batch is tested for `done` and reprioritize, not `verified`.
 - R-20: updating by `id` through the tool, and the unknown-ID failure, are untested.
 - R-21: save order is untested.
 - R-22: all-or-nothing for unknown idea IDs is untested.

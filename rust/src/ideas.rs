@@ -175,31 +175,50 @@ impl IdeaStore {
     /// Mark an idea done by prefixing "(Done)" to the first description line.
     /// The score is preserved. Returns false when the ID is unknown.
     pub fn mark_done(&self, idea_id: &str) -> Result<bool, String> {
+        Ok(!self.mark_done_all(&[idea_id.to_string()])?.is_empty())
+    }
+
+    /// Mark every listed idea done in one load and one save (D-16), returning
+    /// the marked ideas in save order. Unknown IDs are ignored; when none
+    /// match, nothing is written.
+    pub fn mark_done_all(&self, idea_ids: &[String]) -> Result<Vec<Idea>, String> {
         let mut ideas = self.load();
-        let Some(idea) = ideas.iter_mut().find(|i| i.id == idea_id) else {
-            return Ok(false);
-        };
-
-        let (first_line, rest) = match idea.description.split_once('\n') {
-            Some((first, rest)) => (first.to_string(), Some(rest.to_string())),
-            None => (idea.description.clone(), None),
-        };
-
-        let first_line = if first_line.starts_with("(Done)") {
-            first_line
-        } else if first_line.is_empty() {
-            "(Done)".to_string()
-        } else {
-            format!("(Done) {first_line}")
-        };
-
-        idea.description = match rest {
-            Some(rest) if !rest.is_empty() => format!("{first_line}\n{rest}"),
-            _ => first_line,
-        };
-        idea.stamp();
-
+        let touched = ideas
+            .iter_mut()
+            .filter(|i| idea_ids.contains(&i.id))
+            .map(|idea| {
+                idea.description = done_description(&idea.description);
+                idea.stamp();
+            })
+            .count();
+        if touched == 0 {
+            return Ok(Vec::new());
+        }
         self.save(&mut ideas).map_err(|e| e.to_string())?;
-        Ok(true)
+        Ok(ideas
+            .into_iter()
+            .filter(|i| idea_ids.contains(&i.id))
+            .collect())
+    }
+}
+
+/// The description with "(Done)" prefixed to its first line, never doubled.
+fn done_description(description: &str) -> String {
+    let (first_line, rest) = match description.split_once('\n') {
+        Some((first, rest)) => (first.to_string(), Some(rest.to_string())),
+        None => (description.to_string(), None),
+    };
+
+    let first_line = if first_line.starts_with("(Done)") {
+        first_line
+    } else if first_line.is_empty() {
+        "(Done)".to_string()
+    } else {
+        format!("(Done) {first_line}")
+    };
+
+    match rest {
+        Some(rest) if !rest.is_empty() => format!("{first_line}\n{rest}"),
+        _ => first_line,
     }
 }

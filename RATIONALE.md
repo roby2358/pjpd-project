@@ -194,8 +194,13 @@ how decisions changed is in ARCHITECTURE_LOG.md.
 - **Alternatives:** apply to the IDs that exist and report the rest.
 - **Why:** a typo in one ID shouldn't leave a batch half applied (G-1); the model fixes the
   list and retries. Every ID is checked before any change.
-- **Known gap (tracked as a task):** each ID is then saved separately, so a disk error
-  partway through can still leave a partial batch, and a batch leaves one backup per ID.
+- **One save per batch:** the batch is then applied in memory to one load and written
+  with one save (alternative: patch and save each ID in turn, which left one backup per
+  ID and a half-applied batch after a disk error partway through). A failed write
+  therefore leaves the batch unapplied rather than partial.
+- **Known gap:** one task save writes `tasks.txt`, `tasks_done.txt` and
+  `tasks_verified.txt` in turn, and demoting writes `ideas.txt` before the task files
+  (D-21), so a disk error between two files can still split a batch across them.
 
 ### D-22 Parameter schemas advertise the validation bounds — *Decided*
 - **Alternatives:** state bounds only in parameter descriptions; rely on validation
@@ -263,5 +268,5 @@ edits the same files directly and commits them with the code.
 | A hand edit breaks a record's header | Forgiving parser salvages ID and defaults (D-8) | R-6, R-8 |
 | A crash or bad write destroys a file | Atomic rename plus backup in `bak/` (D-12) | R-12 |
 | One mistyped ID in a batch half-applies it | All IDs checked before any change (D-16) | R-17, R-22 |
-| A disk error partway through a batch half-applies it | Not prevented; tracked as a task (D-16) | — |
+| A disk error partway through a batch half-applies it | Batch applied in memory and written with one save; a split across files is still possible (D-16) | R-17, R-22 |
 | A hand-edited number too large for 64 bits silently becomes the default | Not prevented; tracked as a task (D-8) | — |

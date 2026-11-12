@@ -431,15 +431,11 @@ impl PjpdServer {
         }
 
         let store = self.tasks();
-        let updated = task_ids
+        let updated: Vec<Value> = store
+            .update_all(task_ids, patch)?
             .iter()
-            .map(|id| {
-                store
-                    .update(id, patch)?
-                    .map(|t| task_summary(&t, verbose))
-                    .ok_or_else(|| format!("Task '{id}' disappeared during update"))
-            })
-            .collect::<Result<Vec<Value>, String>>()?;
+            .map(|t| task_summary(t, verbose))
+            .collect();
 
         let mut result = Map::new();
         result.insert("tasks".to_string(), json!(updated));
@@ -599,13 +595,9 @@ impl PjpdServer {
             )));
         }
 
-        for id in &params.idea_ids {
-            store.mark_done(id)?;
-        }
         let marked: Vec<Value> = store
-            .load()
+            .mark_done_all(&params.idea_ids)?
             .iter()
-            .filter(|i| params.idea_ids.contains(&i.id))
             .map(|i| idea_summary(i, params.verbose))
             .collect();
 

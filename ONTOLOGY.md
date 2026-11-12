@@ -309,7 +309,9 @@ patch_task(id, patch):
 bulk(ids, patch):
     missing = ids not found by get(id)
     if missing: fail "Tasks not found: [...]. No tasks were modified." ; no change
-    for id in ids: patch_task(id, patch)        # one load and save per id
+    tasks = load_tasks()
+    for task in tasks whose id is in ids: apply set fields of patch; stamp(task)
+    save_tasks(tasks)                           # one load and one save per batch
 ```
 
 ### Demote tasks
@@ -327,11 +329,14 @@ demote(ids):
 ### Mark idea done
 *Serves:* G-3. [D]
 ```
-mark_idea_done(id):
-    first, rest = split description at first newline
-    first = starts_with(first, "(Done)") ? first : (first empty ? "(Done)" : "(Done) " + first)
-    description = rest non-empty ? first + "\n" + rest : first
-    score unchanged; stamp(idea); save_ideas
+mark_ideas_done(ids):                           # after the all-or-nothing ID check
+    ideas = load_ideas()
+    for idea in ideas whose id is in ids:
+        first, rest = split description at first newline
+        first = starts_with(first, "(Done)") ? first : (first empty ? "(Done)" : "(Done) " + first)
+        description = rest non-empty ? first + "\n" + rest : first
+        score unchanged; stamp(idea)
+    save_ideas(ideas)                           # one load and one save per batch
 ```
 
 ### Legacy warning
@@ -417,7 +422,7 @@ changes. Unexpected errors are wrapped as
 | `pjpd_reprioritize_task(priority, task_ids, verbose = false)` | priority in range; every ID valid and existing | Bulk task update with the priority | `tasks` (task summaries; full task fields with `verbose`), `message` |
 | `pjpd_put_idea(score, description, tag?, id?, verbose = false)` | Validation passes; with `id`, the idea exists | `tag` → create idea. `id` → replace description and score | Idea summary fields (id, score), or with `verbose` the full idea fields (id, score, description, created, updated); `message` |
 | `pjpd_list_ideas(count = DEFAULT_COUNT, verbose = false)` | count in range | None. Save-ideas order, truncated to `count` | `ideas` (id, score, summary; full idea fields with `verbose`), `total_ideas` (number of ideas, before truncation), `info` when truncated, `message` |
-| `pjpd_mark_idea_done(idea_ids, verbose = false)` | Every ID valid and existing | Mark idea done for each | `ideas` (idea summaries in save order; full idea fields with `verbose`), `message` |
+| `pjpd_mark_idea_done(idea_ids, verbose = false)` | Every ID valid and existing | Mark idea done for all, in one save | `ideas` (idea summaries in save order; full idea fields with `verbose`), `message` |
 
 ### Prompts
 

@@ -44,6 +44,22 @@ Make status comparisons consistent and case-insensitive: Task is_done does an ex
 ----
 Priority:   90
 Status: Done
+ID: listfile-hjpd
+Created: 2026-11-12T23:05:23Z
+Updated: 2026-11-12T23:07:43Z
+
+Make `pjpd_list_tasks` report the file it actually listed in `project_file`.
+
+Goal: R-24 says every success result's `project_file` is the full path of the file operated on. `pjpd_list_tasks` always reports `tasks.txt` (rust/src/server.rs, list_tasks_impl, which inserts `self.tasks().tasks_file`), even for `status: "done"` or `"verified"`, whose tasks come from `tasks_done.txt` and `tasks_verified.txt`. Seen live: listing status done returned `project_file: .../pjpd/tasks.txt`.
+
+Settled design: pick the path from the parsed `Stage`: todo → `TaskStore.tasks_file`, done → `done_tasks_file`, verified → `verified_tasks_file`. Best as one method that maps a Stage to its file (e.g. on TaskStore), reused by the save split if that is a natural fit; don't restructure beyond that. Report the path even if that archive file doesn't exist yet. Only `pjpd_list_tasks` changes; other tools keep their current `project_file`.
+
+Docs: update the R-16 row in CRITERIA.md to say `project_file` names the listed file (or the R-24 row, whichever reads better), the ONTOLOGY interface entry for pjpd_list_tasks if it names project_file, and add an ARCHITECTURE_LOG entry. No new decision needed unless one falls out.
+
+Done when: a test in rust/tests/R-16/ (or R-24/) lists each of the three statuses and asserts `project_file` ends with tasks.txt, tasks_done.txt and tasks_verified.txt respectively; `cargo test` passes; `cargo clippy` adds no new warnings; `cargo build --release` succeeds.
+----
+Priority:   90
+Status: Done
 ID: leandone-k4m2
 Created: 2026-11-12T02:50:00Z
 Updated: 2026-11-12T21:43:54Z

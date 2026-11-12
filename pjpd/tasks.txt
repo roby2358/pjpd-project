@@ -1,11 +1,3 @@
-Priority:   70
-Status: ToDo
-ID: schemabounds-gyk3
-Created: 2026-08-13T21:07:30Z
-Updated: 2026-11-12T19:14:32Z
-
-Add numeric range and string length bounds to the MCP parameter JSON schemas via schemars attributes, for example range 0 to 9999 on priority and score, 1 to 1000 on count, and length 1 to 12 on tag. Runtime validation already enforces these rules; the generated schema stopped advertising them after the Rust port, so calling models get less machine-readable guidance than the old Pydantic schemas provided.
-----
 Priority:   65
 Status: ToDo
 ID: bulkatomic-w828

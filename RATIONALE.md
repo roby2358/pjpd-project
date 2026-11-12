@@ -162,6 +162,16 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   (G-1), so content goes to a temporary sibling that is renamed over the target. The
   previous version is moved into `bak/` first, which also recovers from a bad write by a
   model. Backups are not committed (`.gitignore`) and are never pruned automatically.
+- **Backup names never collide.** The name is `<stem>.<YYYYMMDDHHMMSS>.<ext>`; when a
+  write earlier in the same second (or a repeated local hour at a DST change) already took
+  it, the first free `_01`, `_02`, … suffix is added, because a rename would otherwise
+  overwrite that backup and lose a version. Alternatives: a finer timestamp (milliseconds
+  or nanoseconds), rejected because it only makes a collision less likely and makes the
+  name harder to read; an always-present counter, rejected as noise on the common case.
+  `_` sorts after `.`, so a suffixed name sorts after its unsuffixed one and the listing
+  stays in write order (up to 99 writes in one second). The free-name check and the rename
+  are not one atomic step; that is safe because one server process writes the files
+  sequentially (D-1).
 
 ### D-14 One response envelope, always naming the file — *Decided*
 - **Alternatives:** MCP-native errors; tool-specific result shapes.

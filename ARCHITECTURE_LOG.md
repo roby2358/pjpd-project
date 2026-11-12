@@ -4,6 +4,13 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Backup names get a suffix instead of colliding
+Backups in `bak/` were named with a per-second timestamp and moved there with a rename
+that overwrites, so two writes of the same file within one second left only the later
+backup and the earlier version was lost. When the timestamped name is taken, the backup
+now gets the first free `_NN` suffix (`tasks.20261112215627_01.txt`), keeping every
+version and the write order (D-12, Atomic write rule). R-12 extended with one test.
+
 ### 2026-11-12 — Oversized Priority/Score values stay in the description
 A hand-edited `Priority:` or `Score:` value of digits too large for a signed 64-bit
 integer used to be consumed as a header line and silently replaced with

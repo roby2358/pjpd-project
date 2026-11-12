@@ -1,5 +1,6 @@
 //! R-12: rewriting `tasks.txt` or `ideas.txt` first moves the previous file to
-//! `bak/<stem>.<timestamp>.<ext>`; rewriting `tasks_done.txt` or
+//! `bak/<stem>.<timestamp>.<ext>` (or `<stem>.<timestamp>_NN.<ext>` when a
+//! write in the same second already took that name); rewriting `tasks_done.txt` or
 //! `tasks_verified.txt` leaves no backup.
 
 #[path = "../common/mod.rs"]
@@ -32,6 +33,50 @@ fn write_atomic_archives_previous_version() {
         std::fs::read_to_string(bak_dir.join(&backups[0])).unwrap(),
         "v1"
     );
+}
+
+// R-12: two writes in the same second leave two backups: the second gets a
+// `_NN` suffix instead of overwriting the first, and the names sort in write
+// order. Writes repeat until two backups share a second (the first pair almost
+// always does), so the test does not depend on where a second boundary falls.
+#[test]
+fn same_second_writes_keep_every_backup() {
+    let dir = TempDir::new().unwrap();
+    let file = dir.path().join("data.txt");
+    let bak_dir = dir.path().join("bak");
+    let sorted_backups = || {
+        let mut names: Vec<String> = std::fs::read_dir(&bak_dir)
+            .map(|entries| {
+                entries
+                    .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+                    .collect()
+            })
+            .unwrap_or_default();
+        names.sort();
+        names
+    };
+
+    let writes = (0..50)
+        .map(|n| textrec::write_atomic(&file, &format!("v{n}")).unwrap())
+        .take_while(|_| !sorted_backups().iter().any(|n| n.contains("_01.")))
+        .count()
+        + 1;
+
+    let names = sorted_backups();
+    let collided = names.iter().find(|n| n.contains("_01.")).unwrap();
+    let base = collided.replace("_01.", ".");
+    assert!(names.contains(&base), "{base} missing from {names:?}");
+    assert!(
+        names
+            .iter()
+            .all(|n| n.starts_with("data.") && n.ends_with(".txt"))
+    );
+    let contents: Vec<String> = names
+        .iter()
+        .map(|n| std::fs::read_to_string(bak_dir.join(n)).unwrap())
+        .collect();
+    let expected: Vec<String> = (0..writes - 1).map(|n| format!("v{n}")).collect();
+    assert_eq!(contents, expected);
 }
 
 // R-12: write_atomic_no_backup replaces the file and keeps no copy.

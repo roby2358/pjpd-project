@@ -189,8 +189,10 @@ hyphen, and `ID_SUFFIX_LEN` characters from `ID_ALPHABET` (a–z and 2–9 witho
 generated only by salvage and rewritten to `legacy-XXXX` on save.
 
 **Backups.** Before replacing `tasks.txt` or `ideas.txt`, the old file is moved to
-`bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). `tasks_done.txt` and `tasks_verified.txt`
-are replaced without a backup.
+`bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). If a backup already has that name (a
+write earlier in the same second), the name takes the first free suffix `_01`, `_02`, …:
+`bak/<stem>.<YYYYMMDDHHMMSS>_NN.<ext>`. No backup is overwritten, and names sort in write
+order. `tasks_done.txt` and `tasks_verified.txt` are replaced without a backup.
 
 ---
 
@@ -264,10 +266,12 @@ called on: task add, task patch, idea add, idea update, idea mark done
 *Serves:* G-1. [D]
 ```
 write_atomic(path, text):          # tasks.txt, ideas.txt
-    if path exists: mkdir bak/; rename path -> bak/<stem>.<timestamp>.<ext>
+    if path exists: mkdir bak/; rename path -> backup_path(path)
     atomic_replace(path, text)
 write_atomic_no_backup(path, text): atomic_replace(path, text)   # tasks_done.txt, tasks_verified.txt
 atomic_replace(path, text): mkdir parent; write sibling temp file; rename over path
+backup_path(path): first name not in bak/ among
+    <stem>.<timestamp>.<ext>, <stem>.<timestamp>_01.<ext>, <stem>.<timestamp>_02.<ext>, ...
 ```
 
 ### Save tasks

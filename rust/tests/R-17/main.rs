@@ -59,9 +59,8 @@ async fn reprioritize_with_unknown_id_changes_nothing() {
 }
 
 // R-17: a batch is one load and one save, so it leaves exactly one tasks.txt
-// backup, holding the file as it was before the batch (D-16). Backup names
-// are per second, so per-ID saves would leave either several backups or one
-// holding a half-applied batch.
+// backup, holding the file as it was before the batch (D-16). Every save
+// leaves its own backup (D-12), so per-ID saves would leave several.
 #[tokio::test]
 async fn batch_saves_tasks_file_once() {
     let (dir, server) = server();

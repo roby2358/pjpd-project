@@ -91,6 +91,11 @@ fn timestamp() -> String {
 
 /// `tasks.txt` -> `tasks.20260813185300.txt`
 fn timestamped_name(file_path: &Path) -> String {
+    suffixed_name(file_path, &timestamp())
+}
+
+/// `tasks.txt` + `20260813185300_01` -> `tasks.20260813185300_01.txt`
+fn suffixed_name(file_path: &Path, label: &str) -> String {
     let stem = file_path
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
@@ -99,7 +104,20 @@ fn timestamped_name(file_path: &Path) -> String {
         .extension()
         .map(|e| format!(".{}", e.to_string_lossy()))
         .unwrap_or_default();
-    format!("{stem}.{}{suffix}", timestamp())
+    format!("{stem}.{label}{suffix}")
+}
+
+/// The first free backup path in `bak_dir`: `<stem>.<timestamp>.<ext>`, or
+/// `<stem>.<timestamp>_NN.<ext>` (NN = 01, 02, ...) when a write in the same
+/// second already took that name, so no backup is overwritten (D-12). `_`
+/// sorts after `.`, so names sort in write order.
+fn backup_path(bak_dir: &Path, file_path: &Path) -> PathBuf {
+    let stamp = timestamp();
+    std::iter::once(stamp.clone())
+        .chain((1..).map(|n| format!("{stamp}_{n:02}")))
+        .map(|label| bak_dir.join(suffixed_name(file_path, &label)))
+        .find(|path| !path.exists())
+        .expect("an unbounded candidate sequence always has a free name")
 }
 
 fn parent_dir(file_path: &Path) -> PathBuf {
@@ -110,14 +128,15 @@ fn parent_dir(file_path: &Path) -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// Move an existing file into a sibling bak/ directory with a timestamped name.
+/// Move an existing file into a sibling bak/ directory with a timestamped name
+/// that no earlier backup holds.
 fn archive(file_path: &Path) -> io::Result<()> {
     if !file_path.exists() {
         return Ok(());
     }
     let bak_dir = parent_dir(file_path).join("bak");
     fs::create_dir_all(&bak_dir)?;
-    fs::rename(file_path, bak_dir.join(timestamped_name(file_path)))
+    fs::rename(file_path, backup_path(&bak_dir, file_path))
 }
 
 /// Write content to a temp sibling and atomically swap it into place.

@@ -5,8 +5,11 @@ use crate::ids;
 
 pub fn validate_tag(tag: &str) -> Result<(), String> {
     let len = tag.chars().count();
-    if !(1..=12).contains(&len) {
-        return Err("Tag must be 1-12 characters long".to_string());
+    if !(1..=ids::TAG_MAX_LEN).contains(&len) {
+        return Err(format!(
+            "Tag must be 1-{} characters long",
+            ids::TAG_MAX_LEN
+        ));
     }
     if !tag.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
         return Err("Tag can only contain alphanumeric characters and hyphens".to_string());

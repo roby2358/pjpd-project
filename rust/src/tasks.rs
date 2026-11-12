@@ -10,7 +10,8 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value, json};
 
 use crate::record::{
-    parse_record, push_description, readdress_legacy, resolve_id, stamp, tag_from_id,
+    DEFAULT_LOADED_PRIORITY, NUMBER_WIDTH, parse_record, push_description, readdress_legacy,
+    resolve_id, stamp, tag_from_id,
 };
 use crate::{ids, textrec};
 
@@ -68,7 +69,9 @@ impl Task {
             &["priority"],
         );
         let id = resolve_id(parsed.property("id"), parsed.property("tag"), "task")?;
-        let priority = parsed.numeric_property("priority").unwrap_or(1);
+        let priority = parsed
+            .numeric_property("priority")
+            .unwrap_or(DEFAULT_LOADED_PRIORITY);
         let status = parsed
             .owned_property("status")
             .unwrap_or_else(|| STATUS_TODO.to_string());
@@ -110,7 +113,7 @@ impl Task {
     /// then a blank line, then the description.
     pub fn to_text(&self) -> String {
         let mut lines = vec![
-            format!("Priority: {:4}", self.priority),
+            format!("Priority: {:NUMBER_WIDTH$}", self.priority),
             format!("Status: {}", self.status),
             format!("ID: {}", self.id),
         ];

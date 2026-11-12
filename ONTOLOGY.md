@@ -190,7 +190,7 @@ generated only by salvage and rewritten to `legacy-XXXX` on save.
 
 **Backups.** Before replacing `tasks.txt` or `ideas.txt`, the old file is moved to
 `bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). If a backup already has that name (a
-write earlier in the same second), the name takes the first free suffix `_01`, `_02`, …:
+write earlier in the same second), the name takes the first free suffix `_01`, `_02`, … (BACKUP_SUFFIX_WIDTH digits):
 `bak/<stem>.<YYYYMMDDHHMMSS>_NN.<ext>`. No backup is overwritten, and names sort in write
 order. `tasks_done.txt` and `tasks_verified.txt` are replaced without a backup.
 
@@ -385,22 +385,24 @@ the tool and parameter descriptions and the `pjpd_intro` prompt. There is no bac
 ## §6 Numbers [T]
 
 Every constant, by name. The rest of the doc set refers to these names, never their values.
+Each is one named constant in the code, and every use refers to it.
 
 | Name | Value | Unit | Code | Decision |
 |---|---|---|---|---|
-| DEFAULT_NEW_TASK_PRIORITY | 50 | priority | `server.rs` const | D-3 |
-| DEMOTED_IDEA_SCORE | 50 | score | `server.rs` const | D-21 |
-| DEFAULT_LOADED_PRIORITY | 1 | priority / score | literal `unwrap_or(1)` in `tasks.rs`, `ideas.rs` | D-8 |
-| NUMBER_WIDTH | 4 | characters | literal `{:4}` in `to_text` | D-2 |
-| VALUE_MIN, VALUE_MAX | 0, 9999 | priority / score | literals in `server.rs` | D-5 |
-| COUNT_MIN, COUNT_MAX | 1, 1000 | records | literals in `server.rs` | D-15 |
-| DEFAULT_COUNT | 20 | records | `default_count()` in `server.rs` | D-15 |
-| SUMMARY_MAX_CHARS | 100 | characters | const in `server.rs` | D-15 |
-| TAG_MAX_LEN | 12 | characters | literals in `ids.rs`, `validation.rs`, `record.rs` | D-13 |
-| ID_SUFFIX_LEN | 4 | characters | literal in `ids.rs` | D-13 |
-| ID_ALPHABET | `abcdefghijkmnpqrstuvwxyz23456789` | — | `BASE32_CHARS` in `ids.rs` | D-13 |
-| RECORD_SEPARATOR | `----` | — | const in `textrec.rs` | D-2 |
-| SEPARATOR_MIN_HYPHENS | 3 | hyphens | literal in `textrec.rs` | D-2 |
+| DEFAULT_NEW_TASK_PRIORITY | 50 | priority | `server::DEFAULT_NEW_TASK_PRIORITY` | D-3 |
+| DEMOTED_IDEA_SCORE | 50 | score | `server::DEMOTED_IDEA_SCORE` | D-21 |
+| DEFAULT_LOADED_PRIORITY | 1 | priority / score | `record::DEFAULT_LOADED_PRIORITY` | D-8 |
+| NUMBER_WIDTH | 4 | characters | `record::NUMBER_WIDTH` | D-2 |
+| VALUE_MIN, VALUE_MAX | 0, 9999 | priority / score | `server::VALUE_MIN`, `server::VALUE_MAX` | D-5 |
+| COUNT_MIN, COUNT_MAX | 1, 1000 | records | `server::COUNT_MIN`, `server::COUNT_MAX` | D-15 |
+| DEFAULT_COUNT | 20 | records | `server::DEFAULT_COUNT` | D-15 |
+| SUMMARY_MAX_CHARS | 100 | characters | `server::SUMMARY_MAX_CHARS` | D-15 |
+| TAG_MAX_LEN | 12 | characters | `ids::TAG_MAX_LEN` | D-13 |
+| ID_SUFFIX_LEN | 4 | characters | `ids::ID_SUFFIX_LEN` | D-13 |
+| ID_ALPHABET | `abcdefghijkmnpqrstuvwxyz23456789` | — | `ids::ID_ALPHABET` | D-13 |
+| RECORD_SEPARATOR | `----` | — | `textrec::RECORD_SEPARATOR` | D-2 |
+| SEPARATOR_MIN_HYPHENS | 3 | hyphens | `textrec::SEPARATOR_MIN_HYPHENS` | D-2 |
+| BACKUP_SUFFIX_WIDTH | 2 | digits | `textrec::BACKUP_SUFFIX_WIDTH` | D-12 |
 
 ---
 

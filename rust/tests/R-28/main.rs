@@ -2,9 +2,10 @@
 //! validation enforces (VALUE_MIN..VALUE_MAX, COUNT_MIN..COUNT_MAX, tag length
 //! 1..TAG_MAX_LEN, non-empty description and ID lists).
 
+use pjpd::ids::TAG_MAX_LEN;
 use pjpd::server::{
-    ListIdeasParams, ListTasksParams, MarkIdeaDoneParams, MarkTaskParams, PutIdeaParams,
-    PutTaskParams, ReprioritizeTaskParams,
+    COUNT_MAX, COUNT_MIN, ListIdeasParams, ListTasksParams, MarkIdeaDoneParams, MarkTaskParams,
+    PutIdeaParams, PutTaskParams, ReprioritizeTaskParams, VALUE_MAX, VALUE_MIN,
 };
 use rmcp::handler::server::common::schema_for_type;
 use schemars::JsonSchema;
@@ -24,30 +25,30 @@ fn assert_bound<T: JsonSchema + 'static>(name: &str, key: &str, value: i64) {
 // R-28: priority and score advertise VALUE_MIN..VALUE_MAX.
 #[test]
 fn priority_and_score_ranges() {
-    assert_bound::<PutTaskParams>("priority", "minimum", 0);
-    assert_bound::<PutTaskParams>("priority", "maximum", 9999);
-    assert_bound::<ReprioritizeTaskParams>("priority", "minimum", 0);
-    assert_bound::<ReprioritizeTaskParams>("priority", "maximum", 9999);
-    assert_bound::<PutIdeaParams>("score", "minimum", 0);
-    assert_bound::<PutIdeaParams>("score", "maximum", 9999);
+    assert_bound::<PutTaskParams>("priority", "minimum", VALUE_MIN);
+    assert_bound::<PutTaskParams>("priority", "maximum", VALUE_MAX);
+    assert_bound::<ReprioritizeTaskParams>("priority", "minimum", VALUE_MIN);
+    assert_bound::<ReprioritizeTaskParams>("priority", "maximum", VALUE_MAX);
+    assert_bound::<PutIdeaParams>("score", "minimum", VALUE_MIN);
+    assert_bound::<PutIdeaParams>("score", "maximum", VALUE_MAX);
 }
 
 // R-28: count advertises COUNT_MIN..COUNT_MAX on both list tools.
 #[test]
 fn count_ranges() {
-    assert_bound::<ListTasksParams>("count", "minimum", 1);
-    assert_bound::<ListTasksParams>("count", "maximum", 1000);
-    assert_bound::<ListIdeasParams>("count", "minimum", 1);
-    assert_bound::<ListIdeasParams>("count", "maximum", 1000);
+    assert_bound::<ListTasksParams>("count", "minimum", COUNT_MIN);
+    assert_bound::<ListTasksParams>("count", "maximum", COUNT_MAX);
+    assert_bound::<ListIdeasParams>("count", "minimum", COUNT_MIN);
+    assert_bound::<ListIdeasParams>("count", "maximum", COUNT_MAX);
 }
 
 // R-28: tag advertises length 1..TAG_MAX_LEN; description at least 1.
 #[test]
 fn string_lengths() {
     assert_bound::<PutTaskParams>("tag", "minLength", 1);
-    assert_bound::<PutTaskParams>("tag", "maxLength", 12);
+    assert_bound::<PutTaskParams>("tag", "maxLength", TAG_MAX_LEN as i64);
     assert_bound::<PutIdeaParams>("tag", "minLength", 1);
-    assert_bound::<PutIdeaParams>("tag", "maxLength", 12);
+    assert_bound::<PutIdeaParams>("tag", "maxLength", TAG_MAX_LEN as i64);
     assert_bound::<PutTaskParams>("description", "minLength", 1);
     assert_bound::<PutIdeaParams>("description", "minLength", 1);
 }
@@ -70,7 +71,7 @@ fn descriptions_name_the_enforced_range() {
     ];
     descriptions.iter().for_each(|prop| {
         let text = prop["description"].as_str().unwrap();
-        assert!(text.contains("9999"), "{text}");
+        assert!(text.contains(&VALUE_MAX.to_string()), "{text}");
         assert!(!text.contains("outside"), "{text}");
     });
 }

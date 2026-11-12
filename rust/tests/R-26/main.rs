@@ -6,6 +6,7 @@
 mod common;
 
 use common::{assert_success, create_task, list_tasks, mark_tasks, server};
+use pjpd::server::DEMOTED_IDEA_SCORE;
 
 // R-26: a todo task and a done task are both demoted.
 #[tokio::test]
@@ -32,7 +33,7 @@ async fn demote_turns_tasks_into_ideas() {
         .expect("demoted idea takes the task's tag");
     let rethink_id = rethink["id"].as_str().unwrap();
     assert_ne!(rethink_id, todo);
-    assert_eq!(rethink["score"], 50);
+    assert_eq!(rethink["score"], DEMOTED_IDEA_SCORE);
 
     // The ideas file holds the new ideas, descriptions in full, and no
     // reference to the tasks.
@@ -66,7 +67,7 @@ async fn demote_verified_task() {
     let idea = &body["ideas"][0];
     assert!(idea["id"].as_str().unwrap().starts_with("checked-"));
     assert_ne!(idea["id"], id.as_str());
-    assert_eq!(idea["score"], 50);
+    assert_eq!(idea["score"], DEMOTED_IDEA_SCORE);
 
     let verified = std::fs::read_to_string(dir.path().join("pjpd/tasks_verified.txt")).unwrap();
     assert!(!verified.contains(&id));

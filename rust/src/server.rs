@@ -19,23 +19,34 @@ use serde_json::{Map, Value, json};
 
 use crate::ideas::{Idea, IdeaStore};
 use crate::tasks::{STATUS_DONE, STATUS_TODO, STATUS_VERIFIED, Stage, Task, TaskPatch, TaskStore};
-use crate::validation;
+use crate::{ids, validation};
 
 const INTRO_TEXT: &str = include_str!("../../resources/intro.txt");
 
-/// Priority assigned to newly created tasks when the caller omits one.
-const DEFAULT_NEW_TASK_PRIORITY: i64 = 50;
+/// Priority assigned to newly created tasks when the caller omits one (D-3).
+pub const DEFAULT_NEW_TASK_PRIORITY: i64 = 50;
 
 /// Score given to an idea made by demoting a task (D-21). The task's priority
 /// is not carried over: priority and score are distinct (D-4).
-const DEMOTED_IDEA_SCORE: i64 = 50;
+pub const DEMOTED_IDEA_SCORE: i64 = 50;
 
 /// Most characters of a description's first line that a list summary shows
 /// (D-15).
-const SUMMARY_MAX_CHARS: usize = 100;
+pub const SUMMARY_MAX_CHARS: usize = 100;
+
+/// VALUE_MIN, VALUE_MAX: the priority and score range a request may set (D-5).
+pub const VALUE_MIN: i64 = 0;
+pub const VALUE_MAX: i64 = 9999;
+
+/// COUNT_MIN, COUNT_MAX: the `count` range a list request may ask for (D-15).
+pub const COUNT_MIN: i64 = 1;
+pub const COUNT_MAX: i64 = 1000;
+
+/// DEFAULT_COUNT: records a list returns when `count` is omitted (D-15).
+pub const DEFAULT_COUNT: i64 = 20;
 
 fn default_count() -> i64 {
-    20
+    DEFAULT_COUNT
 }
 
 fn default_status() -> String {
@@ -53,7 +64,7 @@ pub struct PutTaskParams {
     /// "gitsemantics"), NEVER the project name — tasks already live inside a
     /// project, and the tag makes the task ID self-describing.
     #[serde(default)]
-    #[schemars(length(min = 1, max = 12))]
+    #[schemars(length(min = 1, max = ids::TAG_MAX_LEN))]
     pub tag: Option<String>,
     /// Existing task ID (format: `<tag>-XXXX`). Provide to update an existing task.
     #[serde(default)]
@@ -62,7 +73,7 @@ pub struct PutTaskParams {
     /// accepted for exceptional cases. Defaults to 50 when creating a new
     /// task. When updating, omit to preserve the task's existing priority.
     #[serde(default)]
-    #[schemars(range(min = 0, max = 9999))]
+    #[schemars(range(min = VALUE_MIN, max = VALUE_MAX))]
     pub priority: Option<i64>,
     /// Return the full record(s), description and timestamps included.
     /// Defaults to false: the result gives each task's id, status and
@@ -75,7 +86,7 @@ pub struct PutTaskParams {
 pub struct ListTasksParams {
     /// Maximum number of tasks to return, 1 to 1000. Defaults to 20.
     #[serde(default = "default_count")]
-    #[schemars(range(min = 1, max = 1000))]
+    #[schemars(range(min = COUNT_MIN, max = COUNT_MAX))]
     pub count: i64,
     /// Which tasks to list: "todo" (not yet done, the default), "done"
     /// (implemented, awaiting review) or "verified" (reviewed by the user).
@@ -132,7 +143,7 @@ impl MarkState {
 pub struct ReprioritizeTaskParams {
     /// New priority to apply to every listed task. 0 (negligible) to 100
     /// (urgent); values up to 9999 are accepted for exceptional cases.
-    #[schemars(range(min = 0, max = 9999))]
+    #[schemars(range(min = VALUE_MIN, max = VALUE_MAX))]
     pub priority: i64,
     /// List of tag-based task IDs (format: `<tag>-XXXX`) to reprioritize.
     #[schemars(length(min = 1))]
@@ -148,7 +159,7 @@ pub struct ReprioritizeTaskParams {
 pub struct ListIdeasParams {
     /// Maximum number of ideas to return, 1 to 1000. Defaults to 20.
     #[serde(default = "default_count")]
-    #[schemars(range(min = 1, max = 1000))]
+    #[schemars(range(min = COUNT_MIN, max = COUNT_MAX))]
     pub count: i64,
     /// Return the full records, description and timestamps included.
     /// Defaults to false: each idea gives its id, score and a `summary` (the
@@ -162,7 +173,7 @@ pub struct ListIdeasParams {
 pub struct PutIdeaParams {
     /// Relevance score from 0 (trivial) to 100 (critical); values up to 9999
     /// are accepted for exceptional cases.
-    #[schemars(range(min = 0, max = 9999))]
+    #[schemars(range(min = VALUE_MIN, max = VALUE_MAX))]
     pub score: i64,
     /// What the idea entails, in enough detail for a human or model to
     /// understand its purpose and scope.
@@ -173,7 +184,7 @@ pub struct PutIdeaParams {
     /// name — ideas already live inside a project, and the tag makes the idea
     /// ID self-describing.
     #[serde(default)]
-    #[schemars(length(min = 1, max = 12))]
+    #[schemars(length(min = 1, max = ids::TAG_MAX_LEN))]
     pub tag: Option<String>,
     /// Existing idea ID (format: `<tag>-XXXX`). Provide to update an existing idea.
     #[serde(default)]
@@ -323,7 +334,7 @@ impl PjpdServer {
     fn put_task_impl(&self, params: PutTaskParams) -> Result<CallToolResult, String> {
         validation::validate_non_empty_description(&params.description)?;
         if let Some(priority) = params.priority {
-            validation::validate_range(priority, 0, 9999, "priority")?;
+            validation::validate_range(priority, VALUE_MIN, VALUE_MAX, "priority")?;
         }
         validation::validate_tag_or_id(&params.tag, &params.id, "Task ID")?;
 
@@ -352,7 +363,7 @@ impl PjpdServer {
     }
 
     fn list_tasks_impl(&self, params: ListTasksParams) -> Result<CallToolResult, String> {
-        validation::validate_range(params.count, 1, 1000, "count")?;
+        validation::validate_range(params.count, COUNT_MIN, COUNT_MAX, "count")?;
         let stage = Stage::parse(&params.status).ok_or_else(|| {
             format!(
                 "status must be one of 'todo', 'done' or 'verified' (got '{}')",
@@ -515,7 +526,7 @@ impl PjpdServer {
     }
 
     fn list_ideas_impl(&self, params: ListIdeasParams) -> Result<CallToolResult, String> {
-        validation::validate_range(params.count, 1, 1000, "count")?;
+        validation::validate_range(params.count, COUNT_MIN, COUNT_MAX, "count")?;
 
         let mut ideas = self.ideas().load();
         let total = ideas.len();
@@ -546,7 +557,7 @@ impl PjpdServer {
     }
 
     fn put_idea_impl(&self, params: PutIdeaParams) -> Result<CallToolResult, String> {
-        validation::validate_range(params.score, 0, 9999, "score")?;
+        validation::validate_range(params.score, VALUE_MIN, VALUE_MAX, "score")?;
         validation::validate_non_empty_description(&params.description)?;
         validation::validate_tag_or_id(&params.tag, &params.id, "Idea ID")?;
 
@@ -679,7 +690,7 @@ impl PjpdServer {
         Parameters(params): Parameters<ReprioritizeTaskParams>,
     ) -> CallToolResult {
         let run = || -> Result<CallToolResult, String> {
-            validation::validate_range(params.priority, 0, 9999, "priority")?;
+            validation::validate_range(params.priority, VALUE_MIN, VALUE_MAX, "priority")?;
             validation::validate_id_list(&params.task_ids, "Task ID")?;
             let reprioritize = TaskPatch {
                 description: None,

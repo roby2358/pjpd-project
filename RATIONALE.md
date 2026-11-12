@@ -29,6 +29,15 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   its details are pinned by tests: separator (written as RECORD_SEPARATOR, read as
   SEPARATOR_MIN_HYPHENS or more hyphens so older files still load), NUMBER_WIDTH padding,
   property order, blank line before the description, ID pattern and sort orders.
+- **Numbers live in one place.** Each Numbers-table entry is a single named constant in
+  the code. Tests compare bounds and defaults (VALUE_MAX, COUNT_MAX, DEFAULT_COUNT,
+  DEFAULT_LOADED_PRIORITY, …) by constant name, but expected on-disk text (padded
+  `Priority:` lines, separators, backup names, the ID pattern) stays literal: it pins the
+  cross-language contract, so changing a format constant must fail a test. Parameter
+  descriptions in `server.rs` still state their numbers in prose, since a doc comment
+  can't interpolate a constant; R-28 checks that the VALUE_MAX one matches. The legacy
+  `XX-XXXX-XX` segment lengths are a fixed historical shape, not a tunable, and are not in
+  the table.
 - **Evidence:** `Measured by:` the Rust port was checked byte-identical against the
   Python implementation on real project data before the Python side was retired.
 

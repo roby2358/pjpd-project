@@ -8,7 +8,8 @@ use std::path::{Path, PathBuf};
 use serde_json::{Map, Value, json};
 
 use crate::record::{
-    parse_record, push_description, readdress_legacy, resolve_id, stamp, tag_from_id,
+    DEFAULT_LOADED_PRIORITY, NUMBER_WIDTH, parse_record, push_description, readdress_legacy,
+    resolve_id, stamp, tag_from_id,
 };
 use crate::{ids, textrec};
 
@@ -33,7 +34,9 @@ impl Idea {
     pub fn from_text(text: &str) -> Option<Idea> {
         let parsed = parse_record(text, &["id", "tag", "created", "updated"], &["score"]);
         let id = resolve_id(parsed.property("id"), parsed.property("tag"), "idea")?;
-        let score = parsed.numeric_property("score").unwrap_or(1);
+        let score = parsed
+            .numeric_property("score")
+            .unwrap_or(DEFAULT_LOADED_PRIORITY);
         let created = parsed.owned_property("created");
         let updated = parsed.owned_property("updated");
 
@@ -65,7 +68,7 @@ impl Idea {
     /// then a blank line, then the description.
     pub fn to_text(&self) -> String {
         let mut lines = vec![
-            format!("Score: {:4}", self.score),
+            format!("Score: {:NUMBER_WIDTH$}", self.score),
             format!("ID: {}", self.id),
         ];
         if let Some(created) = &self.created {

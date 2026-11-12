@@ -4,6 +4,14 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Every number in the Numbers table is a named constant
+Several Numbers-table values were literals repeated across modules (TAG_MAX_LEN in three
+files, VALUE_MAX and COUNT_MAX in each validation call and schema attribute). Each table
+entry is now one named constant that every use, schema attributes included, refers to;
+`BASE32_CHARS` became `ID_ALPHABET`, and the backup suffix width joined the table as
+BACKUP_SUFFIX_WIDTH. Tests compare bounds and defaults by constant name; on-disk golden
+text stays literal (D-2). No behavior change.
+
 ### 2026-11-12 — Backup names get a suffix instead of colliding
 Backups in `bak/` were named with a per-second timestamp and moved there with a rename
 that overwrites, so two writes of the same file within one second left only the later

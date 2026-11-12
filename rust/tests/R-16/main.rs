@@ -8,7 +8,7 @@
 mod common;
 
 use common::{assert_success, create_task, list_tasks, mark_tasks, response_json, server};
-use pjpd::server::ListTasksParams;
+use pjpd::server::{DEFAULT_COUNT, ListTasksParams, SUMMARY_MAX_CHARS};
 use rmcp::handler::server::wrapper::Parameters;
 
 // R-16: highest priority first, truncated to count, info names 2 of 3, and
@@ -83,7 +83,7 @@ async fn status_filter_selects_by_file() {
 fn status_defaults_to_todo() {
     let params: ListTasksParams = serde_json::from_str("{}").unwrap();
     assert_eq!(params.status, "todo");
-    assert_eq!(params.count, 20);
+    assert_eq!(params.count, DEFAULT_COUNT);
 }
 
 // R-16: statuses match case-insensitively (D-6): a hand-edited `done` in
@@ -128,12 +128,12 @@ async fn hand_edited_status_case_lists_by_stage() {
 }
 
 // R-16: by default each task is id, priority, status and the description's
-// first line cut to 100 characters, "..." marking omitted text; no
+// first line cut to SUMMARY_MAX_CHARS characters, "..." marking omitted text; no
 // description or timestamps.
 #[tokio::test]
 async fn default_listing_is_a_summary() {
     let (_dir, server) = server();
-    let long = "x".repeat(150);
+    let long = "x".repeat(SUMMARY_MAX_CHARS + 50);
     create_task(&server, "one line", "short", 5).await;
     create_task(&server, "first line\nsecond line", "multi", 9).await;
     create_task(&server, &long, "long", 1).await;
@@ -149,7 +149,7 @@ async fn default_listing_is_a_summary() {
         vec![
             "first line...".to_string(),
             "one line".to_string(),
-            format!("{}...", "x".repeat(100)),
+            format!("{}...", "x".repeat(SUMMARY_MAX_CHARS)),
         ]
     );
     let keys: Vec<&String> = tasks[0].as_object().unwrap().keys().collect();

@@ -9,6 +9,14 @@ use crate::ids;
 /// Timestamp format used in Created/Updated fields (ISO-8601 UTC).
 const ISO_FMT: &str = "%Y-%m-%dT%H:%M:%SZ";
 
+/// DEFAULT_LOADED_PRIORITY: the priority or score of a loaded record with no
+/// numeric Priority/Score line (D-8).
+pub const DEFAULT_LOADED_PRIORITY: i64 = 1;
+
+/// NUMBER_WIDTH: the width `Priority:` and `Score:` values are right-aligned
+/// to on write (D-2).
+pub const NUMBER_WIDTH: usize = 4;
+
 pub fn now_utc() -> String {
     chrono::Utc::now().format(ISO_FMT).to_string()
 }
@@ -143,13 +151,13 @@ fn is_number(value: &str) -> bool {
 }
 
 /// Extract the tag from an ID: the segment before the first hyphen when it is
-/// at most 12 characters, otherwise "legacy".
+/// at most TAG_MAX_LEN characters, otherwise "legacy".
 pub fn tag_from_id(id: &str) -> String {
     if !id.contains('-') {
         return "legacy".to_string();
     }
     let first = id.split('-').next().unwrap_or("");
-    if first.chars().count() <= 12 {
+    if first.chars().count() <= ids::TAG_MAX_LEN {
         first.to_string()
     } else {
         "legacy".to_string()

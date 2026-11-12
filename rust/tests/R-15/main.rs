@@ -9,9 +9,10 @@ use common::{
     assert_failure, create_idea, create_task, list_tasks, mark_tasks, response_json, server,
     snapshot,
 };
+use pjpd::ids::TAG_MAX_LEN;
 use pjpd::server::{
-    ListIdeasParams, ListTasksParams, MarkIdeaDoneParams, PjpdServer, PutIdeaParams, PutTaskParams,
-    ReprioritizeTaskParams,
+    COUNT_MAX, COUNT_MIN, ListIdeasParams, ListTasksParams, MarkIdeaDoneParams, PjpdServer,
+    PutIdeaParams, PutTaskParams, ReprioritizeTaskParams, VALUE_MAX, VALUE_MIN,
 };
 use pjpd::validation::{
     validate_exactly_one_of_tag_or_id, validate_id, validate_range, validate_tag,
@@ -20,12 +21,13 @@ use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::CallToolResult;
 use tempfile::TempDir;
 
-// R-15: tags must be 1..12 chars of [A-Za-z0-9-].
+// R-15: tags must be 1..TAG_MAX_LEN chars of [A-Za-z0-9-].
 #[test]
 fn tag_rules() {
     assert!(validate_tag("fix-bug").is_ok());
     assert!(validate_tag("").is_err());
-    assert!(validate_tag("thirteenchars").is_err());
+    assert!(validate_tag(&"t".repeat(TAG_MAX_LEN)).is_ok());
+    assert!(validate_tag(&"t".repeat(TAG_MAX_LEN + 1)).is_err());
     assert!(validate_tag("has space").is_err());
 }
 
@@ -50,9 +52,9 @@ fn exactly_one_of_tag_or_id() {
 // R-15: values outside the allowed range fail.
 #[test]
 fn ranges() {
-    assert!(validate_range(0, 0, 9999, "priority").is_ok());
-    assert!(validate_range(10000, 0, 9999, "priority").is_err());
-    assert!(validate_range(0, 1, 1000, "count").is_err());
+    assert!(validate_range(VALUE_MIN, VALUE_MIN, VALUE_MAX, "priority").is_ok());
+    assert!(validate_range(VALUE_MAX + 1, VALUE_MIN, VALUE_MAX, "priority").is_err());
+    assert!(validate_range(COUNT_MIN - 1, COUNT_MIN, COUNT_MAX, "count").is_err());
 }
 
 // R-15: pjpd_put_task with both tag and id fails.
@@ -155,11 +157,14 @@ fn put_idea_params(
 }
 
 // R-15: pjpd_put_task rejects an empty description, a bad tag, a bad ID,
-// neither tag nor id, and a priority outside 0..9999, changing nothing.
+// neither tag nor id, and a priority outside VALUE_MIN..VALUE_MAX, changing
+// nothing.
 #[tokio::test]
 async fn put_task_rejects_bad_arguments() {
     let (dir, server, task, _) = seeded().await;
     let before = snapshot(&dir);
+    let long_tag = "t".repeat(TAG_MAX_LEN + 1);
+    let tag_length_error = format!("Tag must be 1-{TAG_MAX_LEN}");
     let cases = [
         (
             put_task_params("", Some("new"), None),
@@ -174,8 +179,8 @@ async fn put_task_rejects_bad_arguments() {
             "Tag can only contain",
         ),
         (
-            put_task_params("x", Some("thirteenchars"), None),
-            "Tag must be 1-12",
+            put_task_params("x", Some(&long_tag), None),
+            &tag_length_error,
         ),
         (
             put_task_params("x", None, Some("nodash")),
@@ -187,7 +192,7 @@ async fn put_task_rejects_bad_arguments() {
         let result = server.pjpd_put_task(Parameters(params)).await;
         assert_rejected(&dir, &before, &result, expected);
     }
-    for priority in [-1, 10000] {
+    for priority in [VALUE_MIN - 1, VALUE_MAX + 1] {
         let params = PutTaskParams {
             priority: Some(priority),
             ..put_task_params("x", Some("new"), None)
@@ -197,17 +202,19 @@ async fn put_task_rejects_bad_arguments() {
             &dir,
             &before,
             &result,
-            "priority must be between 0 and 9999",
+            &format!("priority must be between {VALUE_MIN} and {VALUE_MAX}"),
         );
     }
 }
 
 // R-15: pjpd_put_idea rejects an empty description, a bad tag, a bad ID,
-// both or neither of tag/id, and a score outside 0..9999, changing nothing.
+// both or neither of tag/id, and a score outside VALUE_MIN..VALUE_MAX,
+// changing nothing.
 #[tokio::test]
 async fn put_idea_rejects_bad_arguments() {
     let (dir, server, _, idea) = seeded().await;
     let before = snapshot(&dir);
+    let score_error = format!("score must be between {VALUE_MIN} and {VALUE_MAX}");
     let cases = [
         (
             put_idea_params("", Some("new"), None, 5),
@@ -231,12 +238,12 @@ async fn put_idea_rejects_bad_arguments() {
         ),
         (put_idea_params("x", None, None, 5), "Provide either 'tag'"),
         (
-            put_idea_params("x", Some("new"), None, -1),
-            "score must be between 0 and 9999",
+            put_idea_params("x", Some("new"), None, VALUE_MIN - 1),
+            &score_error,
         ),
         (
-            put_idea_params("x", None, Some(&idea), 10000),
-            "score must be between 0 and 9999",
+            put_idea_params("x", None, Some(&idea), VALUE_MAX + 1),
+            &score_error,
         ),
     ];
     for (params, expected) in cases {
@@ -245,12 +252,13 @@ async fn put_idea_rejects_bad_arguments() {
     }
 }
 
-// R-15: both list tools reject a count outside 1..1000.
+// R-15: both list tools reject a count outside COUNT_MIN..COUNT_MAX.
 #[tokio::test]
 async fn list_tools_reject_count_out_of_range() {
     let (dir, server, _, _) = seeded().await;
     let before = snapshot(&dir);
-    for count in [0, 1001] {
+    let count_error = format!("count must be between {COUNT_MIN} and {COUNT_MAX}");
+    for count in [COUNT_MIN - 1, COUNT_MAX + 1] {
         let result = server
             .pjpd_list_tasks(Parameters(ListTasksParams {
                 count,
@@ -258,14 +266,14 @@ async fn list_tools_reject_count_out_of_range() {
                 verbose: false,
             }))
             .await;
-        assert_rejected(&dir, &before, &result, "count must be between 1 and 1000");
+        assert_rejected(&dir, &before, &result, &count_error);
         let result = server
             .pjpd_list_ideas(Parameters(ListIdeasParams {
                 count,
                 verbose: false,
             }))
             .await;
-        assert_rejected(&dir, &before, &result, "count must be between 1 and 1000");
+        assert_rejected(&dir, &before, &result, &count_error);
     }
 }
 
@@ -296,12 +304,12 @@ async fn id_list_tools_reject_empty_or_malformed_lists() {
     };
     let result = reprioritize(vec![], 5).await;
     assert_rejected(&dir, &before, &result, "Task ID list must not be empty");
-    let result = reprioritize(vec![task.clone()], 10000).await;
+    let result = reprioritize(vec![task.clone()], VALUE_MAX + 1).await;
     assert_rejected(
         &dir,
         &before,
         &result,
-        "priority must be between 0 and 9999",
+        &format!("priority must be between {VALUE_MIN} and {VALUE_MAX}"),
     );
 
     let mark_ideas = |idea_ids: Vec<String>| {

@@ -1,5 +1,5 @@
 //! Text files broken into records with `----` separators.
-//! Reads 3+ hyphens for backward compatibility, writes 4 hyphens (asciidoc standard).
+//! Reads SEPARATOR_MIN_HYPHENS+ hyphens for backward compatibility, writes 4 hyphens (asciidoc standard).
 
 use std::fs;
 use std::io;
@@ -7,13 +7,21 @@ use std::path::{Path, PathBuf};
 
 pub const RECORD_SEPARATOR: &str = "----";
 
-/// A separator is a line of 3+ hyphens, optionally followed by trailing whitespace.
+/// SEPARATOR_MIN_HYPHENS: the fewest hyphens a line needs to read as a
+/// separator (D-2).
+pub const SEPARATOR_MIN_HYPHENS: usize = 3;
+
+/// BACKUP_SUFFIX_WIDTH: digits in the `_NN` suffix of a backup name taken in
+/// a second that already has one (D-12).
+pub const BACKUP_SUFFIX_WIDTH: usize = 2;
+
+/// A separator is a line of SEPARATOR_MIN_HYPHENS+ hyphens, optionally followed by trailing whitespace.
 fn is_separator_line(line: &str) -> bool {
     let trimmed = line.trim_end();
-    trimmed.len() >= 3 && trimmed.bytes().all(|b| b == b'-')
+    trimmed.len() >= SEPARATOR_MIN_HYPHENS && trimmed.bytes().all(|b| b == b'-')
 }
 
-/// Read a file and return its records (separated by 3+ hyphens on a line) as plain strings.
+/// Read a file and return its records (separated by SEPARATOR_MIN_HYPHENS+ hyphens on a line) as plain strings.
 /// A missing or unreadable file yields an empty list.
 pub fn read_records(file_path: &Path) -> Vec<String> {
     match fs::read_to_string(file_path) {
@@ -114,7 +122,7 @@ fn suffixed_name(file_path: &Path, label: &str) -> String {
 fn backup_path(bak_dir: &Path, file_path: &Path) -> PathBuf {
     let stamp = timestamp();
     std::iter::once(stamp.clone())
-        .chain((1..).map(|n| format!("{stamp}_{n:02}")))
+        .chain((1..).map(|n| format!("{stamp}_{n:0BACKUP_SUFFIX_WIDTH$}")))
         .map(|label| bak_dir.join(suffixed_name(file_path, &label)))
         .find(|path| !path.exists())
         .expect("an unbounded candidate sequence always has a free name")

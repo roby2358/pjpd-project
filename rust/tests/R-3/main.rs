@@ -3,7 +3,7 @@
 //! first unrecognized line starts the description.
 
 use pjpd::ideas::Idea;
-use pjpd::record::parse_record;
+use pjpd::record::{DEFAULT_LOADED_PRIORITY, parse_record};
 use pjpd::tasks::Task;
 
 // R-3: keys match case-insensitively and keys and values are trimmed.
@@ -60,7 +60,7 @@ fn numeric_property_boundary_is_i64_max() {
 #[test]
 fn oversized_task_priority_survives_round_trip() {
     let task = Task::from_text("ID: t-ab12\nPriority: 123456789012345678901\nreal text").unwrap();
-    assert_eq!(task.priority, 1);
+    assert_eq!(task.priority, DEFAULT_LOADED_PRIORITY);
     assert_eq!(
         task.description,
         "Priority: 123456789012345678901\nreal text"
@@ -73,7 +73,7 @@ fn oversized_task_priority_survives_round_trip() {
 #[test]
 fn oversized_idea_score_stays_in_description() {
     let idea = Idea::from_text("Score: 123456789012345678901\nID: spark-ab12\ntry it").unwrap();
-    assert_eq!(idea.score, 1);
+    assert_eq!(idea.score, DEFAULT_LOADED_PRIORITY);
     assert_eq!(
         idea.description,
         "Score: 123456789012345678901\nID: spark-ab12\ntry it"

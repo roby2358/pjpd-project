@@ -41,6 +41,13 @@ Updated: 2026-11-12T22:07:17Z
 
 Reject whitespace-only descriptions in pjpd_put_task and pjpd_put_idea. validate_non_empty_description checks description.is_empty(), so "   " passes, and the store then trims it to an empty description, saving a record with no text. ONTOLOGY's request rules say only "description: non-empty"; decide whether non-empty means after trimming, and if so validate on trim() and add an R-15 case.
 ----
+Score:   20
+ID: docnumbers-waa3
+Created: 2026-11-12T22:18:30Z
+Updated: 2026-11-12T22:18:30Z
+
+Parameter doc comments in rust/src/server.rs (which become the tool schema descriptions a calling model reads) state Numbers-table values in prose: "1-12 characters" (TAG_MAX_LEN), "1 to 1000. Defaults to 20" (COUNT_MAX, DEFAULT_COUNT), "cut to 100 characters" (SUMMARY_MAX_CHARS), "Defaults to 50" (DEFAULT_NEW_TASK_PRIORITY). Doc comments can't interpolate constants, so these can drift from the code; only the VALUE_MAX mention is checked (R-28). Options: extend R-28 to assert each description contains its constant's value, or generate the descriptions with schemars `description = ...` from formatted constants. Low value while the numbers rarely change.
+----
 Score:    0
 ID: mark-done-dh2y
 

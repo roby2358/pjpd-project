@@ -1,11 +1,3 @@
-Priority:   52
-Status: ToDo
-ID: numconsts-pmur
-Created: 2026-11-12T19:27:49Z
-Updated: 2026-11-12T19:27:49Z
-
-Give every number in the ONTOLOGY Numbers table a named constant in the code, using the table's names, so the code is the single source and tests refer to constants by name: DEFAULT_LOADED_PRIORITY (unwrap_or(1) in tasks.rs and ideas.rs), NUMBER_WIDTH ({:4} in to_text), VALUE_MIN/VALUE_MAX (0, 9999 in server.rs), COUNT_MIN/COUNT_MAX (1, 1000), TAG_MAX_LEN (12, duplicated in ids.rs, validation.rs, record.rs), ID_SUFFIX_LEN (4), SEPARATOR_MIN_HYPHENS (3); rename BASE32_CHARS to ID_ALPHABET or update the table. Then update the Code column of the Numbers table. No behavior change.
-----
 Priority:   40
 Status: ToDo
 ID: clippyptr-rhq9
@@ -13,3 +5,11 @@ Created: 2026-11-12T21:28:12Z
 Updated: 2026-11-12T21:28:12Z
 
 Fix the clippy `ptr_arg` warning in rust/src/ideas.rs: `IdeaStore::save(&self, ideas: &mut Vec<Idea>)` should take `&mut [Idea]` (it only sorts and iterates). No behavior change. Done when `cargo clippy --all-targets` in rust/ reports no warnings and `cargo test` is green.
+----
+Priority:   30
+Status: ToDo
+ID: legacytag-cp43
+Created: 2026-11-12T22:18:27Z
+Updated: 2026-11-12T22:18:27Z
+
+In rust/src/record.rs, `tag_from_id` returns the string literal "legacy" in two places instead of `ids::LEGACY_TAG`, the constant defined for that tag in ids.rs. Replace both literals with `ids::LEGACY_TAG.to_string()`. No behavior change. Done when `cargo test` in rust/ is green and grep finds no "legacy" string literal in record.rs.

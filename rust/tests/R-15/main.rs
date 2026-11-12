@@ -85,6 +85,7 @@ async fn list_tasks_rejects_unknown_status() {
         .pjpd_list_tasks(Parameters(ListTasksParams {
             count: 20,
             status: "all".to_string(),
+            verbose: false,
         }))
         .await;
     let error = assert_failure(&response_json(&result));

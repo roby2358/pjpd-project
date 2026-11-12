@@ -4,6 +4,16 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — List tools return summaries; `verbose` opts into full records
+`pjpd_list_tasks` returned each task's id, priority, status and full description;
+`pjpd_list_ideas` returned full ideas with timestamps. Both now take `verbose` (default
+false) and by default list each record by its summary fields plus `summary`, the
+description's first line cut to SUMMARY_MAX_CHARS (new constant); `verbose: true` gives
+the full record, timestamps included, on both (D-15). `total_tasks` and `total_ideas`
+used to give the number returned; they now give the number before truncation.
+`pjpd_list_ideas` now adds `info` when it truncates, as `pjpd_list_tasks` did. R-16 and
+R-21 updated with new tests; R-19 and R-22 tests read `summary`.
+
 ### 2026-11-12 — Write tools return lean results; `verbose` opts into full records
 The five write tools (`pjpd_put_task`, `pjpd_mark_task`, `pjpd_reprioritize_task`,
 `pjpd_put_idea`, `pjpd_mark_idea_done`) used to echo every touched record in full,

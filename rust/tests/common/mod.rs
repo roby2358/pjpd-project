@@ -78,6 +78,7 @@ pub async fn list_tasks(server: &PjpdServer, status: &str) -> Value {
         .pjpd_list_tasks(Parameters(ListTasksParams {
             count: 20,
             status: status.to_string(),
+            verbose: false,
         }))
         .await;
     assert_success(&response_json(&result))

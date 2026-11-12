@@ -39,10 +39,13 @@ async fn mark_idea_done_prefixes_description_and_preserves_score() {
 
     let listed = assert_success(&response_json(
         &server
-            .pjpd_list_ideas(Parameters(ListIdeasParams { count: 20 }))
+            .pjpd_list_ideas(Parameters(ListIdeasParams {
+                count: 20,
+                verbose: false,
+            }))
             .await,
     ));
-    assert_eq!(listed["ideas"][0]["description"], "(Done) keep my score");
+    assert_eq!(listed["ideas"][0]["summary"], "(Done) keep my score");
     assert_eq!(listed["ideas"][0]["score"], 42);
 
     let on_disk = std::fs::read_to_string(dir.path().join("pjpd/ideas.txt")).unwrap();

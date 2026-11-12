@@ -1,6 +1,8 @@
 //! R-16: `pjpd_list_tasks` lists the tasks saved to the file its `status`
 //! filter names (`todo` by default), sorts status `ToDo` first, then priority
-//! desc, and truncates to `count` with `info` naming returned and total.
+//! desc, and truncates to `count` with `info` naming returned and total;
+//! `total_tasks` counts every matching task. Each task is a summary (id,
+//! priority, status, `summary`) unless `verbose` asks for the full record.
 
 #[path = "../common/mod.rs"]
 mod common;
@@ -9,7 +11,8 @@ use common::{assert_success, create_task, list_tasks, mark_tasks, response_json,
 use pjpd::server::ListTasksParams;
 use rmcp::handler::server::wrapper::Parameters;
 
-// R-16: highest priority first, truncated to count, info names 2 of 3.
+// R-16: highest priority first, truncated to count, info names 2 of 3, and
+// total_tasks counts all 3.
 #[tokio::test]
 async fn list_tasks_sorts_and_truncates() {
     let (_dir, server) = server();
@@ -21,15 +24,16 @@ async fn list_tasks_sorts_and_truncates() {
         .pjpd_list_tasks(Parameters(ListTasksParams {
             count: 2,
             status: "todo".to_string(),
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));
-    assert_eq!(body["total_tasks"], 2);
+    assert_eq!(body["total_tasks"], 3);
     let descriptions: Vec<&str> = body["tasks"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|t| t["description"].as_str().unwrap())
+        .map(|t| t["summary"].as_str().unwrap())
         .collect();
     assert_eq!(descriptions, vec!["high", "mid"]);
     assert_eq!(body["info"], "Returned 2 of 3 total tasks");
@@ -57,6 +61,7 @@ async fn status_filter_selects_by_file() {
             .pjpd_list_tasks(Parameters(ListTasksParams {
                 count: 20,
                 status: "todo".to_string(),
+                verbose: false,
             }))
             .await,
     ));
@@ -120,4 +125,56 @@ async fn hand_edited_status_case_lists_by_stage() {
     assert_eq!(finished["total_tasks"], 1);
     assert_eq!(finished["tasks"][0]["id"], done.as_str());
     assert_eq!(finished["tasks"][0]["status"], "done");
+}
+
+// R-16: by default each task is id, priority, status and the description's
+// first line cut to 100 characters, "..." marking omitted text; no
+// description or timestamps.
+#[tokio::test]
+async fn default_listing_is_a_summary() {
+    let (_dir, server) = server();
+    let long = "x".repeat(150);
+    create_task(&server, "one line", "short", 5).await;
+    create_task(&server, "first line\nsecond line", "multi", 9).await;
+    create_task(&server, &long, "long", 1).await;
+
+    let body = list_tasks(&server, "todo").await;
+    let tasks = body["tasks"].as_array().unwrap();
+    let summaries: Vec<&str> = tasks
+        .iter()
+        .map(|t| t["summary"].as_str().unwrap())
+        .collect();
+    assert_eq!(
+        summaries,
+        vec![
+            "first line...".to_string(),
+            "one line".to_string(),
+            format!("{}...", "x".repeat(100)),
+        ]
+    );
+    let keys: Vec<&String> = tasks[0].as_object().unwrap().keys().collect();
+    assert_eq!(keys, vec!["id", "priority", "status", "summary"]);
+}
+
+// R-16: verbose returns the full record, timestamps included.
+#[tokio::test]
+async fn verbose_listing_is_the_full_record() {
+    let (_dir, server) = server();
+    create_task(&server, "first line\nsecond line", "multi", 9).await;
+
+    let body = assert_success(&response_json(
+        &server
+            .pjpd_list_tasks(Parameters(ListTasksParams {
+                count: 20,
+                status: "todo".to_string(),
+                verbose: true,
+            }))
+            .await,
+    ));
+    let task = &body["tasks"][0];
+    assert_eq!(task["description"], "first line\nsecond line");
+    assert_eq!(task["priority"], 9);
+    assert!(task["created"].is_string());
+    assert!(task["updated"].is_string());
+    assert!(task.get("summary").is_none());
 }

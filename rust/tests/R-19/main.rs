@@ -25,5 +25,5 @@ async fn reprioritize_updates_priority_only() {
     assert_eq!(body["tasks"][0]["priority"], 77);
     let listed = list_tasks(&server, "todo").await;
     assert_eq!(listed["tasks"][0]["priority"], 77);
-    assert_eq!(listed["tasks"][0]["description"], "shuffle me");
+    assert_eq!(listed["tasks"][0]["summary"], "shuffle me");
 }

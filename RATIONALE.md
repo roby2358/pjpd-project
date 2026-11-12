@@ -170,7 +170,25 @@ how decisions changed is in ARCHITECTURE_LOG.md.
 ### D-15 List tools take a `count`, DEFAULT_COUNT by default, capped at COUNT_MAX — *Decided*
 - **Alternatives:** return everything; a configured cap (D-1).
 - **Why:** bounds the response size an agent pays for (G-3) without a config file.
-  `pjpd_list_tasks` says when it truncated.
+  Both list tools say when they truncated (`info`), and `total_tasks` / `total_ideas`
+  count every matching record before truncation, so the caller knows how many it did not
+  see. (Both used to report the number returned, which duplicated the array length.)
+- **Listings are summaries unless asked:** by default a listed record is its id, priority
+  and status (id and score for ideas) plus `summary`, the description's first line cut
+  to SUMMARY_MAX_CHARS characters; `verbose: true` returns the full record, timestamps
+  included, the same on both tools. A full listing of nine tasks cost 2-3k tokens, while
+  an agent scanning the backlog needs only enough to pick one task and then reads that
+  one in full. Summary is the default, following the lean-by-default write results
+  (D-14): the common call is the cheap scan, and opting in is one flag. The flag is named
+  `verbose`, as on the write tools, rather than `summary` or `full`, so one name means
+  "return full records" everywhere. The cut text goes in a `summary` field, not
+  `description`, so a caller cannot mistake it for the full text and write it back with
+  a put tool. Ideas have no status, so their summary has none; the `(Done)` prefix
+  shows in the summary. Alternatives: full by default with `summary: true` (most calls
+  would pay for text they skip); a fixed character cut of the whole description (a first
+  line usually states the task, and multi-line descriptions are common); a separate
+  get-one-record tool (D-18: the caller can pass `verbose` and a small `count`, or
+  read the file named by `project_file`).
 
 ### D-16 ID lists are all-or-nothing — *Decided*
 - **Alternatives:** apply to the IDs that exist and report the rest.

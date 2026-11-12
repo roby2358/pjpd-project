@@ -30,6 +30,10 @@ const DEFAULT_NEW_TASK_PRIORITY: i64 = 50;
 /// is not carried over: priority and score are distinct (D-4).
 const DEMOTED_IDEA_SCORE: i64 = 50;
 
+/// Most characters of a description's first line that a list summary shows
+/// (D-15).
+const SUMMARY_MAX_CHARS: usize = 100;
+
 fn default_count() -> i64 {
     20
 }
@@ -73,6 +77,12 @@ pub struct ListTasksParams {
     /// (implemented, awaiting review) or "verified" (reviewed by the user).
     #[serde(default = "default_status")]
     pub status: String,
+    /// Return the full records, description and timestamps included.
+    /// Defaults to false: each task gives its id, priority, status and a
+    /// `summary` (the description's first line, cut to 100 characters), to
+    /// keep listings short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -132,6 +142,12 @@ pub struct ListIdeasParams {
     /// Maximum number of ideas to return. Defaults to 20.
     #[serde(default = "default_count")]
     pub count: i64,
+    /// Return the full records, description and timestamps included.
+    /// Defaults to false: each idea gives its id, score and a `summary` (the
+    /// description's first line, cut to 100 characters), to keep listings
+    /// short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -201,6 +217,48 @@ fn idea_summary(idea: &Idea, verbose: bool) -> Value {
         idea.to_json()
     } else {
         json!({"id": idea.id, "score": idea.score})
+    }
+}
+
+/// The first line of a description, cut to SUMMARY_MAX_CHARS characters, with
+/// "..." appended when any text was left out (D-15).
+fn description_summary(description: &str) -> String {
+    let trimmed = description.trim();
+    let first_line = trimmed.lines().next().unwrap_or("");
+    let shown: String = first_line.chars().take(SUMMARY_MAX_CHARS).collect();
+    if shown.len() < trimmed.len() {
+        format!("{}...", shown.trim_end())
+    } else {
+        shown
+    }
+}
+
+/// A task as a list tool reports it (D-15): the full record when `verbose`,
+/// else id, priority, status and the description summary.
+fn task_listing(task: &Task, verbose: bool) -> Value {
+    if verbose {
+        task.to_json()
+    } else {
+        json!({
+            "id": task.id,
+            "priority": task.priority,
+            "status": task.status,
+            "summary": description_summary(&task.description),
+        })
+    }
+}
+
+/// An idea as a list tool reports it (D-15): the full record when `verbose`,
+/// else id, score and the description summary.
+fn idea_listing(idea: &Idea, verbose: bool) -> Value {
+    if verbose {
+        idea.to_json()
+    } else {
+        json!({
+            "id": idea.id,
+            "score": idea.score,
+            "summary": description_summary(&idea.description),
+        })
     }
 }
 
@@ -310,18 +368,11 @@ impl PjpdServer {
 
         let task_dicts: Vec<Value> = tasks
             .iter()
-            .map(|t| {
-                json!({
-                    "id": t.id,
-                    "priority": t.priority,
-                    "status": t.status,
-                    "description": t.description,
-                })
-            })
+            .map(|t| task_listing(t, params.verbose))
             .collect();
 
         let mut result = Map::new();
-        result.insert("total_tasks".to_string(), json!(tasks.len()));
+        result.insert("total_tasks".to_string(), json!(total));
         result.insert("tasks".to_string(), json!(task_dicts));
         result.insert(
             "project_file".to_string(),
@@ -459,15 +510,31 @@ impl PjpdServer {
         validation::validate_range(params.count, 1, 1000, "count")?;
 
         let mut ideas = self.ideas().load();
+        let total = ideas.len();
         ideas.truncate(params.count as usize);
-        let idea_dicts: Vec<Value> = ideas.iter().map(|i| i.to_json()).collect();
+        let idea_dicts: Vec<Value> = ideas
+            .iter()
+            .map(|i| idea_listing(i, params.verbose))
+            .collect();
 
-        Ok(mcp_success(json!({
-            "total_ideas": idea_dicts.len(),
-            "ideas": idea_dicts,
-            "project_file": self.ideas().ideas_file.to_string_lossy(),
-            "message": format!("Retrieved {} ideas", idea_dicts.len()),
-        })))
+        let mut result = Map::new();
+        result.insert("total_ideas".to_string(), json!(total));
+        result.insert("ideas".to_string(), json!(idea_dicts));
+        result.insert(
+            "project_file".to_string(),
+            json!(self.ideas().ideas_file.to_string_lossy()),
+        );
+        result.insert(
+            "message".to_string(),
+            json!(format!("Retrieved {} ideas", ideas.len())),
+        );
+        if total > ideas.len() {
+            result.insert(
+                "info".to_string(),
+                json!(format!("Returned {} of {} total ideas", ideas.len(), total)),
+            );
+        }
+        Ok(mcp_success(Value::Object(result)))
     }
 
     fn put_idea_impl(&self, params: PutIdeaParams) -> Result<CallToolResult, String> {
@@ -577,7 +644,7 @@ impl PjpdServer {
 
     #[tool(
         name = "pjpd_list_tasks",
-        description = "List tasks in one status: \"todo\" (the default), \"done\" or \"verified\". Sorted by priority descending."
+        description = "List tasks in one status: \"todo\" (the default), \"done\" or \"verified\". Sorted by priority descending. Each task shows a one-line summary; pass verbose: true for full descriptions."
     )]
     pub async fn pjpd_list_tasks(
         &self,
@@ -638,7 +705,7 @@ impl PjpdServer {
 
     #[tool(
         name = "pjpd_list_ideas",
-        description = "List ideas sorted by score (highest first)."
+        description = "List ideas sorted by score (highest first). Each idea shows a one-line summary; pass verbose: true for full descriptions."
     )]
     pub async fn pjpd_list_ideas(
         &self,

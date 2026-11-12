@@ -54,9 +54,9 @@ A task's priority is the order to do the work in, not how urgent it is. Higher n
 
 ## Working a task
 
-Work one task per agent session.
+Spawn an agent to work one task.
 
-1. Take the highest-priority todo task from `pjpd_list_tasks`, unless the user names a different one. Never take a task below priority 50.
+1. Take the highest-priority todo task from `pjpd_list_tasks`, and never take a task below priority 50, unless the user names one specifically.
 2. Do the work the description asks for, and nothing more.
 3. Run the done-when check.
 4. Commit the work, following the project's commit rules.

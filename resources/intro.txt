@@ -7,9 +7,8 @@ Key Features:
 • Idea tracking with scoring
 • Simple, human-readable text format
 • MCP tools for creating, listing, updating, and completing tasks and ideas
-• Project statistics
 
-All data is stored under <cwd>/pjpd/ as plain text files (tasks.txt, ideas.txt).
+All data is stored under <cwd>/pjpd/ as plain text files (tasks.txt, tasks_done.txt, ideas.txt).
 
 Task Format:
 Each task is stored with a tag-based ID, priority level, status (ToDo/Done), and description, separated by "----" lines (asciidoc style). Files using the older "---" separator are also read correctly.
@@ -22,21 +21,16 @@ Available MCP Tools:
 
 Task Operations:
 • pjpd_put_task - Create or update a task (provide tag to create, id to update)
-• pjpd_list_tasks - List tasks with optional filtering by status or count
-• pjpd_mark_task_done - Mark one or more tasks as completed
+• pjpd_list_tasks - List tasks, optionally including done tasks, up to a count
+• pjpd_mark_task_done - Mark one or more tasks as completed (moves them to tasks_done.txt)
 • pjpd_reprioritize_task - Set the priority of one or more tasks without resending descriptions
 
 Idea Operations:
 • pjpd_put_idea - Create or update an idea (provide tag to create, id to update)
 • pjpd_list_ideas - List ideas sorted by score
-• pjpd_mark_idea_done - Mark one or more ideas as done
-
-Analysis and Reporting:
-• pjpd_get_statistics - Get comprehensive statistics about the project
+• pjpd_mark_idea_done - Mark one or more ideas as done (keeps their score)
 
 System Information:
 • pjpd_intro - Return this introductory description (prompt)
-
-Configuration is managed through projectmcp.toml (currently only max_results).
 
 This system modifies local files on disk. Before using any tools that create, update, or modify project files, please remind the user to back up any important data. Obtain their consent before making file modifications.

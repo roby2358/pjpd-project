@@ -6,7 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pjpd is an MCP (Model Context Protocol) server for local project management, written in Rust (crate in `rust/`, built on the official `rmcp` SDK). It manages tasks and ideas for a single project rooted at the current working directory. All data lives under `<cwd>/pjpd/` as plain text files. It runs over stdio.
 
-The original Python implementation was ported to Rust in August 2026 and removed; it is archived in `pjpd-python-src.zip` and in git history. The Rust port was verified byte-identical on real data before the Python side was retired.
+An earlier Python implementation is archived in `pjpd-python-src.zip` and in git history.
+
+## Design Docs
+
+The design lives in an ontology doc set at the repo root. Cite stable IDs (`G-n`, `D-n`, `R-n`) in code comments, tests and commits, never section numbers.
+
+- **ONTOLOGY.md** — the implementation reference: purpose and goals, entities, invariants, on-disk format, rules as pseudocode, numbers, and the tool interface. Describes the current code only.
+- **CRITERIA.md** — how each rule is checked (R/U/X rows); its Status section lists coverage gaps.
+- **RATIONALE.md** — why each current decision was made (D-n), with alternatives.
+- **ARCHITECTURE_LOG.md** — dated history, newest first; the only doc that says what things used to be.
+
+When a rule, number or tool changes, update in the same change: the ONTOLOGY rule, the RATIONALE decision, the CRITERIA row and its tests, and a new ARCHITECTURE_LOG entry. Designs that aren't built yet stay in `pjpd/tasks.txt` until the change that builds them (D-20).
 
 ## Commands
 
@@ -49,14 +60,13 @@ Run the server by executing `rust/target/release/pjpd` with the project root as 
 
 ## Key Design Decisions
 
-- **CWD is the project root** — no configurable projects directory, no multi-project support.
-- **The on-disk text formats are the cross-language contract** — record separators (`----`), `Priority:`/`Score:` values padded to width 4, properties parsed only from the leading run of property lines (any order within that run; the first non-property line starts the description), a blank line written between header and description (the parser trims it back out, and it guarantees no description line is ever read as a property), separator-shaped description lines (3+ hyphens alone on a line) indented two spaces when a description enters a store — write-side only, the indented form is the stored form, ID pattern `^[a-zA-Z0-9\-]+-[a-z2-9]{4}$`, sort orders. Any future port must preserve them; the test suite pins them.
-- **Priority is a plain integer** (higher = more important). New tasks default to priority 50 when none is given; updates without a priority preserve the existing one.
-- **Priority (tasks) and score (ideas) are deliberately distinct concepts**, not one value under two names. Score measures how promising an idea is; priority measures how urgently a task needs doing, and the second only exists once there's commitment to act. Ideas just are — prioritization happens when something graduates into a task. Don't unify the two fields or their vocabulary.
-- **Marking done**: Tasks get status "Done" and move to tasks_done.txt. Ideas get a "(Done)" prefix; their score is preserved so it stays visible off the books.
-- **Every tool response includes `project_file`** — the full path to the file being operated on.
-- **Legacy migration warning** — task tool responses include a `warning` property if `pjpd/<dir_name>.txt` exists (from the old multi-project layout).
-- **Forgiving parser** — malformed records are salvaged (missing IDs regenerated); statuses stay open strings, not enums, so unknown values survive a load/save round trip.
+The full reasoning is in RATIONALE.md; these are the ones most easily broken by accident.
+
+- **CWD is the project root**, with no configuration and no multi-project support (D-1). Keep the command count small; extend an existing tool before adding one (D-18).
+- **The on-disk text format is the cross-language contract** (D-2): `----` separators, `Priority:`/`Score:` padded to width 4, properties read only from the leading header run, a blank line before the description (D-9), separator-shaped description lines indented two spaces on write (D-10), the ID pattern, and the sort orders. The on-disk format section of ONTOLOGY states it exactly; the tests pin it.
+- **Priority (tasks) and score (ideas) are deliberately distinct concepts** (D-4). Don't unify the fields or their vocabulary.
+- **Marking done**: tasks get status `Done` and move to `tasks_done.txt` (D-6); ideas get a `(Done)` prefix and keep their score (D-7).
+- **Forgiving parser**: salvage malformed records; statuses stay open strings so unknown values survive a round trip (D-8).
 
 ## Development Preferences
 

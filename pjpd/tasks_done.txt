@@ -3,6 +3,7 @@ Status: Done
 ID: tryout-b8bn
 Created: 2026-08-13T20:46:54Z
 Updated: 2026-08-13T20:49:18Z
+
 Try the new pjpd out *and see if it works*
 ----
 Priority:   80
@@ -10,6 +11,7 @@ Status: Done
 ID: headerparse-z7xw
 Created: 2026-08-13T21:07:09Z
 Updated: 2026-08-13T23:05:40Z
+
 Parse record properties only from the leading run of property lines, treating everything after the first non-property line as description. Currently every line of a record is scanned for key-value patterns, so description text that happens to contain a status or id line overrides the record's real header fields on reload (later duplicate wins), letting a task silently rename itself, complete itself, or change priority. Fixing this changes the parse side of the on-disk contract; update the parser tests that pin it.
 ----
 Priority:   70
@@ -17,29 +19,35 @@ Status: Done
 ID: hrescape-3utd
 Created: 2026-08-13T21:07:15Z
 Updated: 2026-08-13T23:30:34Z
+
 Escape or guard description lines consisting of three or more hyphens when writing records to disk, so a markdown horizontal rule inside a description no longer splits the record in two on reload. Today the split-off fragment has no id and is assigned a fresh random legacy id on every load, producing ghost tasks whose ids change between listings. Decide the escaping scheme (indent, prefix, or quote) and keep the reader backward compatible with existing files.
 ----
 Priority:    0
 Status: Done
 ID: timestamps-q2jp
+
 Add Created and Updated timestamp properties to tasks and ideas. Each record gets a Created: ISO-8601 timestamp set once at creation, and an Updated: timestamp refreshed on every write. Existing records without timestamps must parse cleanly — treat missing timestamps as absent, not as errors. When an old record is updated for the first time, set Created and Updated to now. This pairs with the backup history idea: timestamps on records plus diffs across bak/ snapshots gives you a full activity picture without any new infrastructure.
 ----
 Priority:    0
 Status: Done
 ID: batch-k8jd
+
 Add batch operations for tasks: accept lists of tasks for add, update, and mark done operations
 ----
 Priority:    0
 Status: Done
 ID: urldecode-vf3f
+
 fix url decoding in the project path
 ----
 Priority:    0
 Status: Done
 ID: defer-dir-yfvk
+
 defer creating pjpd subdirectory until as long as possible
 ----
 Priority:    0
 Status: Done
 ID: tools-cvmb
+
 Remove filtering parameters from the tools. (It just confuses the models).

@@ -1,11 +1,3 @@
-Priority:   90
-Status: ToDo
-ID: leandone-k4m2
-Created: 2026-11-12T02:50:00Z
-Updated: 2026-11-12T19:32:10Z
-
-Trim the responses of every mutating tool (put_task, put_idea, mark_task_done, mark_idea_done, reprioritize_task). Today each call echoes the full record text back (~150-300 tokens per task, sometimes 2-3 KB), which adds up in agent loops that never read the echo. By default return only id, status, priority (or score for ideas) and a short message, plus project_file as always; return the full record only when a verbose flag is set. Prefer extending existing parameters over adding commands. Update the commands table in ONTOLOGY.md, RATIONALE D-14 (drop its known-gap note), CRITERIA X-1 and the affected R-rows with tests, README_API.md, and add an ARCHITECTURE_LOG entry.
-----
 Priority:   80
 Status: ToDo
 ID: listsummary-w9x5

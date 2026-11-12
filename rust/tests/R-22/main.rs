@@ -1,10 +1,14 @@
 //! R-22: `pjpd_mark_idea_done` prefixes the first description line with
-//! `(Done) ` once (never doubled) and keeps the score.
+//! `(Done) ` once (never doubled) and keeps the score; any unknown ID fails
+//! and no idea changes.
 
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_success, backups_of, clear_backups, response_json, server};
+use common::{
+    assert_failure, assert_success, backups_of, clear_backups, create_idea, response_json, server,
+    snapshot,
+};
 use pjpd::ideas::IdeaStore;
 use pjpd::server::{ListIdeasParams, MarkIdeaDoneParams, PutIdeaParams};
 use rmcp::handler::server::wrapper::Parameters;
@@ -102,4 +106,28 @@ async fn batch_saves_ideas_file_once() {
     ));
     assert_eq!(body["ideas"].as_array().unwrap().len(), 3);
     assert_eq!(backups_of(&dir, "ideas"), vec![before]);
+}
+
+// R-22: one known and one unknown ID fails naming the unknown one, and no
+// file changes.
+#[tokio::test]
+async fn unknown_idea_id_changes_nothing() {
+    let (dir, server) = server();
+    let real = create_idea(&server, "real idea", "real", 5).await;
+    let before = snapshot(&dir);
+
+    let error = assert_failure(&response_json(
+        &server
+            .pjpd_mark_idea_done(Parameters(MarkIdeaDoneParams {
+                idea_ids: vec![real, "ghost-ab29".to_string()],
+                verbose: false,
+            }))
+            .await,
+    ));
+    assert!(
+        error.contains("Ideas not found: ['ghost-ab29']"),
+        "got: {error}"
+    );
+    assert!(error.contains("No ideas were modified"), "got: {error}");
+    assert_eq!(snapshot(&dir), before);
 }

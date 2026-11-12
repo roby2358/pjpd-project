@@ -1,15 +1,24 @@
-//! R-15: tool calls with bad arguments (bad tag, bad ID, both or neither of
-//! tag/id, values out of range) fail with a message.
+//! R-15: tool calls with bad arguments (empty description, bad tag, bad ID,
+//! both or neither of tag/id, values out of range, an empty ID list, an
+//! unknown state or status) fail with a message and change nothing.
 
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{assert_failure, create_task, list_tasks, mark_tasks, response_json, server};
-use pjpd::server::{ListTasksParams, PutTaskParams};
+use common::{
+    assert_failure, create_idea, create_task, list_tasks, mark_tasks, response_json, server,
+    snapshot,
+};
+use pjpd::server::{
+    ListIdeasParams, ListTasksParams, MarkIdeaDoneParams, PjpdServer, PutIdeaParams, PutTaskParams,
+    ReprioritizeTaskParams,
+};
 use pjpd::validation::{
     validate_exactly_one_of_tag_or_id, validate_id, validate_range, validate_tag,
 };
 use rmcp::handler::server::wrapper::Parameters;
+use rmcp::model::CallToolResult;
+use tempfile::TempDir;
 
 // R-15: tags must be 1..12 chars of [A-Za-z0-9-].
 #[test]
@@ -93,4 +102,216 @@ async fn list_tasks_rejects_unknown_status() {
         error.contains("'todo', 'done' or 'verified'"),
         "got: {error}"
     );
+}
+
+/// A server holding one task and one idea, so "changes nothing" is checked
+/// against real files.
+async fn seeded() -> (TempDir, PjpdServer, String, String) {
+    let (dir, server) = server();
+    let task = create_task(&server, "existing task", "task", 5).await;
+    let idea = create_idea(&server, "existing idea", "idea", 5).await;
+    (dir, server, task, idea)
+}
+
+/// Assert the call failed with a message containing `expected` and left
+/// every file under pjpd/ as it was.
+fn assert_rejected(
+    dir: &TempDir,
+    before: &std::collections::BTreeMap<String, String>,
+    result: &CallToolResult,
+    expected: &str,
+) {
+    let error = assert_failure(&response_json(result));
+    assert!(
+        error.contains(expected),
+        "expected '{expected}', got: {error}"
+    );
+    assert_eq!(&snapshot(dir), before);
+}
+
+fn put_task_params(description: &str, tag: Option<&str>, id: Option<&str>) -> PutTaskParams {
+    PutTaskParams {
+        description: description.to_string(),
+        tag: tag.map(str::to_string),
+        id: id.map(str::to_string),
+        priority: None,
+        verbose: false,
+    }
+}
+
+fn put_idea_params(
+    description: &str,
+    tag: Option<&str>,
+    id: Option<&str>,
+    score: i64,
+) -> PutIdeaParams {
+    PutIdeaParams {
+        score,
+        description: description.to_string(),
+        tag: tag.map(str::to_string),
+        id: id.map(str::to_string),
+        verbose: false,
+    }
+}
+
+// R-15: pjpd_put_task rejects an empty description, a bad tag, a bad ID,
+// neither tag nor id, and a priority outside 0..9999, changing nothing.
+#[tokio::test]
+async fn put_task_rejects_bad_arguments() {
+    let (dir, server, task, _) = seeded().await;
+    let before = snapshot(&dir);
+    let cases = [
+        (
+            put_task_params("", Some("new"), None),
+            "Description must not be empty",
+        ),
+        (
+            put_task_params("", None, Some(&task)),
+            "Description must not be empty",
+        ),
+        (
+            put_task_params("x", Some("has space"), None),
+            "Tag can only contain",
+        ),
+        (
+            put_task_params("x", Some("thirteenchars"), None),
+            "Tag must be 1-12",
+        ),
+        (
+            put_task_params("x", None, Some("nodash")),
+            "Task ID must be in format",
+        ),
+        (put_task_params("x", None, None), "Provide either 'tag'"),
+    ];
+    for (params, expected) in cases {
+        let result = server.pjpd_put_task(Parameters(params)).await;
+        assert_rejected(&dir, &before, &result, expected);
+    }
+    for priority in [-1, 10000] {
+        let params = PutTaskParams {
+            priority: Some(priority),
+            ..put_task_params("x", Some("new"), None)
+        };
+        let result = server.pjpd_put_task(Parameters(params)).await;
+        assert_rejected(
+            &dir,
+            &before,
+            &result,
+            "priority must be between 0 and 9999",
+        );
+    }
+}
+
+// R-15: pjpd_put_idea rejects an empty description, a bad tag, a bad ID,
+// both or neither of tag/id, and a score outside 0..9999, changing nothing.
+#[tokio::test]
+async fn put_idea_rejects_bad_arguments() {
+    let (dir, server, _, idea) = seeded().await;
+    let before = snapshot(&dir);
+    let cases = [
+        (
+            put_idea_params("", Some("new"), None, 5),
+            "Description must not be empty",
+        ),
+        (
+            put_idea_params("", None, Some(&idea), 5),
+            "Description must not be empty",
+        ),
+        (
+            put_idea_params("x", Some("bad/tag"), None, 5),
+            "Tag can only contain",
+        ),
+        (
+            put_idea_params("x", None, Some("idea-ABCD"), 5),
+            "Idea ID must be in format",
+        ),
+        (
+            put_idea_params("x", Some("new"), Some(&idea), 5),
+            "not both",
+        ),
+        (put_idea_params("x", None, None, 5), "Provide either 'tag'"),
+        (
+            put_idea_params("x", Some("new"), None, -1),
+            "score must be between 0 and 9999",
+        ),
+        (
+            put_idea_params("x", None, Some(&idea), 10000),
+            "score must be between 0 and 9999",
+        ),
+    ];
+    for (params, expected) in cases {
+        let result = server.pjpd_put_idea(Parameters(params)).await;
+        assert_rejected(&dir, &before, &result, expected);
+    }
+}
+
+// R-15: both list tools reject a count outside 1..1000.
+#[tokio::test]
+async fn list_tools_reject_count_out_of_range() {
+    let (dir, server, _, _) = seeded().await;
+    let before = snapshot(&dir);
+    for count in [0, 1001] {
+        let result = server
+            .pjpd_list_tasks(Parameters(ListTasksParams {
+                count,
+                status: "todo".to_string(),
+                verbose: false,
+            }))
+            .await;
+        assert_rejected(&dir, &before, &result, "count must be between 1 and 1000");
+        let result = server
+            .pjpd_list_ideas(Parameters(ListIdeasParams {
+                count,
+                verbose: false,
+            }))
+            .await;
+        assert_rejected(&dir, &before, &result, "count must be between 1 and 1000");
+    }
+}
+
+// R-15: every ID-list tool rejects an empty list and a malformed ID.
+#[tokio::test]
+async fn id_list_tools_reject_empty_or_malformed_lists() {
+    let (dir, server, task, idea) = seeded().await;
+    let before = snapshot(&dir);
+    for state in ["done", "verified", "idea"] {
+        let result = mark_tasks(&server, &[], state).await;
+        let error = assert_failure(&result);
+        assert!(
+            error.contains("Task ID list must not be empty"),
+            "got: {error}"
+        );
+        let result = mark_tasks(&server, &[&task, "BAD"], state).await;
+        let error = assert_failure(&result);
+        assert!(error.contains("Task ID must be in format"), "got: {error}");
+        assert_eq!(snapshot(&dir), before);
+    }
+
+    let reprioritize = |task_ids: Vec<String>, priority: i64| {
+        server.pjpd_reprioritize_task(Parameters(ReprioritizeTaskParams {
+            priority,
+            task_ids,
+            verbose: false,
+        }))
+    };
+    let result = reprioritize(vec![], 5).await;
+    assert_rejected(&dir, &before, &result, "Task ID list must not be empty");
+    let result = reprioritize(vec![task.clone()], 10000).await;
+    assert_rejected(
+        &dir,
+        &before,
+        &result,
+        "priority must be between 0 and 9999",
+    );
+
+    let mark_ideas = |idea_ids: Vec<String>| {
+        server.pjpd_mark_idea_done(Parameters(MarkIdeaDoneParams {
+            idea_ids,
+            verbose: false,
+        }))
+    };
+    let result = mark_ideas(vec![]).await;
+    assert_rejected(&dir, &before, &result, "Idea ID list must not be empty");
+    let result = mark_ideas(vec![idea, "nodash".to_string()]).await;
+    assert_rejected(&dir, &before, &result, "Idea ID must be in format");
 }

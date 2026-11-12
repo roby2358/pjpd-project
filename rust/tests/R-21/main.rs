@@ -7,7 +7,7 @@
 mod common;
 
 use common::{assert_success, response_json, server};
-use pjpd::server::{ListIdeasParams, PjpdServer, PutIdeaParams};
+use pjpd::server::{ListIdeasParams, MarkIdeaDoneParams, PjpdServer, PutIdeaParams};
 use rmcp::handler::server::wrapper::Parameters;
 use serde_json::Value;
 
@@ -102,4 +102,54 @@ async fn summary_by_default_full_with_verbose() {
     assert_eq!(idea["description"], "first line\nsecond line");
     assert!(idea["created"].is_string());
     assert!(idea["updated"].is_string());
+}
+
+// R-21: ideas list in save order: active ideas by score desc, then done
+// ideas by score desc, matching the order in ideas.txt.
+#[tokio::test]
+async fn list_ideas_follows_save_order() {
+    let (dir, server) = server();
+    put_idea(&server, "low", "low", 10).await;
+    put_idea(&server, "top", "top", 95).await;
+    put_idea(&server, "mid", "mid", 50).await;
+    put_idea(&server, "gone", "gone", 99).await;
+    put_idea(&server, "past", "past", 20).await;
+    let ids_by_summary = |body: &Value, summary: &str| -> String {
+        body["ideas"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["summary"] == summary)
+            .unwrap()["id"]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    let all = list_ideas(&server, 20, false).await;
+    let done_ids = vec![ids_by_summary(&all, "gone"), ids_by_summary(&all, "past")];
+    assert_success(&response_json(
+        &server
+            .pjpd_mark_idea_done(Parameters(MarkIdeaDoneParams {
+                idea_ids: done_ids,
+                verbose: false,
+            }))
+            .await,
+    ));
+
+    let listed = list_ideas(&server, 20, false).await;
+    let summaries: Vec<&str> = listed["ideas"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|i| i["summary"].as_str().unwrap())
+        .collect();
+    let expected = vec!["top", "mid", "low", "(Done) gone", "(Done) past"];
+    assert_eq!(summaries, expected);
+
+    let on_disk = std::fs::read_to_string(dir.path().join("pjpd/ideas.txt")).unwrap();
+    let positions: Vec<usize> = expected
+        .iter()
+        .map(|d| on_disk.find(&format!("\n\n{d}")).unwrap())
+        .collect();
+    assert!(positions.windows(2).all(|w| w[0] < w[1]), "{on_disk}");
 }

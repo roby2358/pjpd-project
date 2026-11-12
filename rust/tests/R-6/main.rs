@@ -145,3 +145,34 @@ fn idea_save_rewrites_legacy_ids() {
             .contains(&format!("ID: {}", idea.id))
     );
 }
+
+// R-6: loading a file where a record has no ID and an invalid Tag drops
+// that record and keeps the others, for tasks and ideas.
+#[test]
+fn invalid_tag_drops_record_on_file_load() {
+    let dir = TempDir::new().unwrap();
+    write_pjpd_file(
+        &dir,
+        "tasks.txt",
+        "Priority:    5\nStatus: ToDo\nID: keep-ab29\n\nkept task\n----\n\
+         Priority:    9\nTag: far too long a tag\n\ndropped task\n----\n\
+         Priority:    3\nTag: bad tag!\n\nalso dropped",
+    );
+    write_pjpd_file(
+        &dir,
+        "ideas.txt",
+        "Score:   20\nTag: not valid tag\n\ndropped idea\n----\n\
+         Score:   10\nID: keep-cd34\n\nkept idea",
+    );
+
+    let tasks = TaskStore::new(dir.path()).load();
+    assert_eq!(
+        tasks.iter().map(|t| t.id.as_str()).collect::<Vec<_>>(),
+        vec!["keep-ab29"]
+    );
+    let ideas = IdeaStore::new(dir.path()).load();
+    assert_eq!(
+        ideas.iter().map(|i| i.id.as_str()).collect::<Vec<_>>(),
+        vec!["keep-cd34"]
+    );
+}

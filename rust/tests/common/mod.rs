@@ -8,7 +8,7 @@ use rmcp::model::CallToolResult;
 use serde_json::Value;
 use tempfile::TempDir;
 
-use pjpd::server::{ListTasksParams, MarkTaskParams, PjpdServer, PutTaskParams};
+use pjpd::server::{ListTasksParams, MarkTaskParams, PjpdServer, PutIdeaParams, PutTaskParams};
 
 /// A server rooted at a fresh temp directory; keep the TempDir alive.
 pub fn server() -> (TempDir, PjpdServer) {
@@ -53,6 +53,21 @@ pub async fn create_task(
             tag: Some(tag.to_string()),
             id: None,
             priority: Some(priority),
+            verbose: false,
+        }))
+        .await;
+    let body = assert_success(&response_json(&result));
+    body["id"].as_str().unwrap().to_string()
+}
+
+/// Create an idea through `pjpd_put_idea` and return its ID.
+pub async fn create_idea(server: &PjpdServer, description: &str, tag: &str, score: i64) -> String {
+    let result = server
+        .pjpd_put_idea(Parameters(PutIdeaParams {
+            score,
+            description: description.to_string(),
+            tag: Some(tag.to_string()),
+            id: None,
             verbose: false,
         }))
         .await;
@@ -109,4 +124,27 @@ pub fn backups_of(dir: &TempDir, stem: &str) -> Vec<String> {
         })
         .map(|p| std::fs::read_to_string(p).unwrap())
         .collect()
+}
+
+/// Every file under `pjpd/` (backups included), path relative to `pjpd/`
+/// mapped to contents, so a test can assert that a call changed nothing.
+pub fn snapshot(dir: &TempDir) -> std::collections::BTreeMap<String, String> {
+    fn walk(root: &std::path::Path, path: &std::path::Path, out: &mut Vec<(String, String)>) {
+        if !path.exists() {
+            return;
+        }
+        for entry in std::fs::read_dir(path).unwrap() {
+            let p = entry.unwrap().path();
+            if p.is_dir() {
+                walk(root, &p, out);
+            } else {
+                let rel = p.strip_prefix(root).unwrap().to_string_lossy().into_owned();
+                out.push((rel, std::fs::read_to_string(&p).unwrap()));
+            }
+        }
+    }
+    let root = dir.path().join("pjpd");
+    let mut files = Vec::new();
+    walk(&root, &root, &mut files);
+    files.into_iter().collect()
 }

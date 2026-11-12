@@ -1,7 +1,10 @@
 //! R-1: records split on separator lines of 3+ hyphens with optional trailing
-//! whitespace only; records are trimmed and empty ones dropped.
+//! whitespace only; records are trimmed and empty ones dropped; a missing
+//! file is no records.
 
-use pjpd::textrec::split_records;
+use pjpd::tasks::TaskStore;
+use pjpd::textrec::{read_records, split_records};
+use tempfile::TempDir;
 
 // R-1: three, four and seven hyphens all separate records.
 #[test]
@@ -27,4 +30,13 @@ fn two_hyphens_is_not_a_separator() {
 #[test]
 fn drops_empty_records() {
     assert_eq!(split_records("----\n\n----\nx\n----"), vec!["x"]);
+}
+
+// R-1: a missing file reads as no records, and a store over a project with
+// no pjpd/ directory loads no tasks.
+#[test]
+fn missing_file_is_no_records() {
+    let dir = TempDir::new().unwrap();
+    assert!(read_records(&dir.path().join("pjpd/tasks.txt")).is_empty());
+    assert!(TaskStore::new(dir.path()).load().is_empty());
 }

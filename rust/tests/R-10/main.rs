@@ -152,3 +152,45 @@ fn hand_edited_status_case_is_archived() {
     assert!(done_text.contains(&done.id) && done_text.contains("Status: done"));
     assert!(verified_text.contains(&verified.id) && verified_text.contains("Status: VERIFIED"));
 }
+
+// R-10: tasks_done.txt and tasks_verified.txt are each sorted by priority desc.
+#[test]
+fn archive_files_sorted_by_priority_descending() {
+    let dir = TempDir::new().unwrap();
+    let store = TaskStore::new(dir.path());
+
+    for (status, file) in [
+        ("Done", &store.done_tasks_file),
+        ("Verified", &store.verified_tasks_file),
+    ] {
+        let ids: Vec<String> = [("low", 1), ("high", 99), ("mid", 50)]
+            .iter()
+            .map(|(desc, priority)| store.add(desc, *priority, desc).unwrap().id)
+            .collect();
+        store.update_all(&ids, &status_patch(status)).unwrap();
+
+        let content = std::fs::read_to_string(file).unwrap();
+        let positions: Vec<usize> = ["high", "mid", "low"]
+            .iter()
+            .map(|d| content.find(&format!("\n\n{d}")).unwrap())
+            .collect();
+        assert!(positions.windows(2).all(|w| w[0] < w[1]), "{content}");
+    }
+}
+
+// R-10: an archive file that already exists is rewritten even when it has
+// no tasks left, so a task removed from it doesn't linger; one that doesn't
+// exist stays absent.
+#[test]
+fn existing_archive_file_is_rewritten_when_emptied() {
+    let dir = TempDir::new().unwrap();
+    let store = TaskStore::new(dir.path());
+
+    let task = store.add("finish", 5, "finish").unwrap();
+    store.update(&task.id, &done_patch()).unwrap();
+    assert!(store.done_tasks_file.exists());
+
+    store.remove(std::slice::from_ref(&task.id)).unwrap();
+    assert_eq!(std::fs::read_to_string(&store.done_tasks_file).unwrap(), "");
+    assert!(!store.verified_tasks_file.exists());
+}

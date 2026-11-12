@@ -5,7 +5,8 @@
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::{create_task, server};
+use common::{backups_of, clear_backups, create_task, server};
+use pjpd::ideas::IdeaStore;
 use pjpd::tasks::{TaskPatch, TaskStore};
 use pjpd::textrec;
 use tempfile::TempDir;
@@ -93,4 +94,30 @@ async fn tasks_file_backup_lands_in_bak_directory() {
     );
     let backups: Vec<_> = std::fs::read_dir(&bak_dir).unwrap().collect();
     assert!(!backups.is_empty(), "expected at least one backup file");
+}
+
+// R-12: an idea store write moves the previous ideas.txt to
+// pjpd/bak/ideas.<timestamp>.txt before the new one lands.
+#[test]
+fn idea_store_backs_up_ideas_file() {
+    let dir = TempDir::new().unwrap();
+    let store = IdeaStore::new(dir.path());
+
+    store.add("first", 5, "one").unwrap();
+    assert!(backups_of(&dir, "ideas").is_empty());
+    let before = std::fs::read_to_string(&store.ideas_file).unwrap();
+    clear_backups(&dir);
+
+    store.add("second", 6, "two").unwrap();
+    assert_eq!(backups_of(&dir, "ideas"), vec![before]);
+    let names: Vec<String> = std::fs::read_dir(dir.path().join("pjpd/bak"))
+        .unwrap()
+        .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    assert!(names[0].starts_with("ideas.") && names[0].ends_with(".txt"));
+    assert!(
+        std::fs::read_to_string(&store.ideas_file)
+            .unwrap()
+            .contains("second")
+    );
 }

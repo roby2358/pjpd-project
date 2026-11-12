@@ -54,3 +54,23 @@ async fn demote_turns_tasks_into_ideas() {
     assert_eq!(listed["tasks"][0]["id"], keep.as_str());
     assert_eq!(list_tasks(&server, "done").await["total_tasks"], 0);
 }
+
+// R-26: a verified task is demoted too, leaving tasks_verified.txt.
+#[tokio::test]
+async fn demote_verified_task() {
+    let (dir, server) = server();
+    let id = create_task(&server, "checked thing", "checked", 30).await;
+    assert_success(&mark_tasks(&server, &[&id], "verified").await);
+
+    let body = assert_success(&mark_tasks(&server, &[&id], "idea").await);
+    let idea = &body["ideas"][0];
+    assert!(idea["id"].as_str().unwrap().starts_with("checked-"));
+    assert_ne!(idea["id"], id.as_str());
+    assert_eq!(idea["score"], 50);
+
+    let verified = std::fs::read_to_string(dir.path().join("pjpd/tasks_verified.txt")).unwrap();
+    assert!(!verified.contains(&id));
+    assert_eq!(list_tasks(&server, "verified").await["total_tasks"], 0);
+    let ideas_file = std::fs::read_to_string(dir.path().join("pjpd/ideas.txt")).unwrap();
+    assert!(ideas_file.contains("checked thing"));
+}

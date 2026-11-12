@@ -1,6 +1,6 @@
 //! R-16: `pjpd_list_tasks` lists the tasks saved to the file its `status`
 //! filter names (`todo` by default), sorts status `ToDo` first, then priority
-//! desc, and truncates to `count` with `info` naming returned and total;
+//! desc, then description lowercased, and truncates to `count` with `info` naming returned and total;
 //! `total_tasks` counts every matching task. Each task is a summary (id,
 //! priority, status, `summary`) unless `verbose` asks for the full record.
 
@@ -177,4 +177,23 @@ async fn verbose_listing_is_the_full_record() {
     assert!(task["created"].is_string());
     assert!(task["updated"].is_string());
     assert!(task.get("summary").is_none());
+}
+
+// R-16: equal status and priority fall back to the description,
+// lowercased: "apple" < "Banana" < "cherry", whatever the creation order.
+#[tokio::test]
+async fn equal_priority_sorts_by_lowercased_description() {
+    let (_dir, server) = server();
+    for (desc, tag) in [("cherry", "c"), ("Banana", "b"), ("apple", "a")] {
+        create_task(&server, desc, tag, 5).await;
+    }
+
+    let listed = list_tasks(&server, "todo").await;
+    let summaries: Vec<&str> = listed["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["summary"].as_str().unwrap())
+        .collect();
+    assert_eq!(summaries, vec!["apple", "Banana", "cherry"]);
 }

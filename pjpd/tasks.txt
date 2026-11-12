@@ -1,11 +1,3 @@
-Priority:   95
-Status: ToDo
-ID: donecase-xxcv
-Created: 2026-08-13T22:38:05Z
-Updated: 2026-11-12T19:14:28Z
-
-Make status comparisons consistent and case-insensitive: Task is_done does an exact match against "Done" while the default list filter compares case-insensitively against "todo", so a hand-edited status like "done" is neither listed nor archived. Use one case-insensitive comparison rule everywhere status is checked.
-----
 Priority:   90
 Status: ToDo
 ID: leandone-k4m2

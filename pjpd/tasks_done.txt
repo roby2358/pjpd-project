@@ -34,6 +34,14 @@ Split the done archive (tasks_done.txt) into a done file and a verified file to 
 
 Principle: keep a paucity of commands; extend existing ones rather than adding new ones (RATIONALE D-18). Update ONTOLOGY.md (storage layout, Done split invariant, Save tasks rule, commands table), RATIONALE.md (D-6 and a new decision for verified/idea states), CRITERIA.md rows with tests, README_API.md, CLAUDE.md (storage layout, marking done), resources/intro.txt, and add an ARCHITECTURE_LOG entry. Pin the new on-disk layout in tests. Done when cargo test is green and every tool call in SKILL.md works as written.
 ----
+Priority:   95
+Status: Done
+ID: donecase-xxcv
+Created: 2026-08-13T22:38:05Z
+Updated: 2026-11-12T21:38:10Z
+
+Make status comparisons consistent and case-insensitive: Task is_done does an exact match against "Done" while the default list filter compares case-insensitively against "todo", so a hand-edited status like "done" is neither listed nor archived. Use one case-insensitive comparison rule everywhere status is checked.
+----
 Priority:   80
 Status: Done
 ID: headerparse-z7xw

@@ -130,8 +130,17 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   DEFAULT_LOADED_PRIORITY; statuses are open strings, so an unknown value like `Blocked`
   survives a load/save round trip. A record is dropped only when its `Tag:` is invalid and
   no ID can be built.
-- **Known gaps (tracked as tasks):** an old-form ID fails the valid-ID check, so tools
-  can't address that record; an oversized number is silently replaced with
+- **Old-form IDs are rewritten on save.** An old-form ID fails the valid-ID check, so tools
+  couldn't address the record. Every task or idea save now gives it a fresh
+  `legacy-XXXX` ID. The tag is `legacy` because it says where the record came from, matches
+  the fallback `tag_from_id` already uses and the Python parser's salvage tag, and is
+  always valid. The old ID's first segment was rejected as a tag: it is two random
+  characters and means nothing. No link to the old ID is kept, since nothing external
+  references these IDs. The record is not stamped: being renamed is not an edit to it.
+  Alternatives: rewrite at load (an ID that changes on every read can't be addressed
+  either); accept the old form in the valid-ID check (widens the tool surface for a
+  salvage artifact).
+- **Known gap (tracked as a task):** an oversized number is silently replaced with
   DEFAULT_LOADED_PRIORITY.
 
 ## Server behavior

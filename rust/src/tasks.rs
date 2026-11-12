@@ -9,7 +9,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value, json};
 
-use crate::record::{parse_record, push_description, resolve_id, stamp, tag_from_id};
+use crate::record::{
+    parse_record, push_description, readdress_legacy, resolve_id, stamp, tag_from_id,
+};
 use crate::{ids, textrec};
 
 pub const STATUS_TODO: &str = "ToDo";
@@ -93,6 +95,15 @@ impl Task {
     /// Set created timestamp if not already set, and refresh updated.
     pub fn stamp(&mut self) {
         stamp(&mut self.created, &mut self.updated);
+    }
+
+    /// Replace a legacy `XX-XXXX-XX` ID with a fresh `legacy-XXXX` one (D-8);
+    /// any other ID is unchanged.
+    pub fn readdress(&mut self) {
+        if let Some(id) = readdress_legacy(&self.id, "task") {
+            self.tag = tag_from_id(&id);
+            self.id = id;
+        }
     }
 
     /// Render back to on-disk record form: each property on its own line,
@@ -205,8 +216,10 @@ impl TaskStore {
     /// Save todo tasks to tasks.txt (with backup), done tasks to
     /// tasks_done.txt and verified tasks to tasks_verified.txt (no backup),
     /// each sorted by priority descending. An archive file is written only
-    /// when it has tasks or already exists.
+    /// when it has tasks or already exists. Legacy IDs are rewritten (D-8).
     fn save(&self, tasks: &[Task]) -> io::Result<()> {
+        let mut tasks = tasks.to_vec();
+        tasks.iter_mut().for_each(Task::readdress);
         let render_stage = |stage: Stage| {
             let mut group: Vec<&Task> = tasks.iter().filter(|t| t.stage() == stage).collect();
             group.sort_by_key(|t| Reverse(t.priority));

@@ -115,6 +115,17 @@ pub fn resolve_id(explicit: Option<&str>, tag: Option<&str>, kind: &str) -> Opti
     Some(id)
 }
 
+/// The replacement for a legacy `XX-XXXX-XX` ID, so a salvaged record
+/// becomes addressable once it is saved: a fresh `legacy-XXXX` ID (D-8).
+/// None for any other ID, which is kept as is.
+pub fn readdress_legacy(id: &str, kind: &str) -> Option<String> {
+    ids::is_legacy_id(id).then(|| {
+        let new_id = ids::generate_legacy_replacement();
+        eprintln!("WARN: rewrote legacy {kind} ID {id} to {new_id}");
+        new_id
+    })
+}
+
 /// Split a stripped line into a lowercased property key and trimmed value.
 /// Returns None when the line has no colon.
 fn property_of(stripped: &str) -> Option<(String, &str)> {

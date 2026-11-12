@@ -62,7 +62,7 @@ server holds only paths.
 
 | Field | Type | Notes |
 |---|---|---|
-| id | string | `<tag>-XXXX`; salvaged records may carry the old `XX-XXXX-XX` form |
+| id | string | `<tag>-XXXX`; a salvaged record may carry the old `XX-XXXX-XX` form until it is saved |
 | tag | string | Derived from `id` at load; never written to disk or returned by tools |
 | priority | integer | Higher = more urgent |
 | status | string | Open string. `ToDo`, `Done` and `Verified` are the values the tools write; others survive round trips |
@@ -186,7 +186,7 @@ with a non-digit value) ends the header; it and everything after it are the desc
 **IDs.** `<tag>-XXXX`: a tag of 1 to `TAG_MAX_LEN` ASCII letters, digits or hyphens, a
 hyphen, and `ID_SUFFIX_LEN` characters from `ID_ALPHABET` (a–z and 2–9 without `l` and
 `o`). A valid ID matches `^[a-zA-Z0-9\-]+-[a-z2-9]{4}$`. The old form `XX-XXXX-XX` is
-generated only by salvage.
+generated only by salvage and rewritten to `legacy-XXXX` on save.
 
 **Backups.** Before replacing `tasks.txt` or `ideas.txt`, the old file is moved to
 `bak/<stem>.<YYYYMMDDHHMMSS>.<ext>` (local time). `tasks_done.txt` and `tasks_verified.txt`
@@ -231,6 +231,10 @@ salvage_id(explicit, tag):
     log WARN to stderr whenever an ID is generated
 tag_from_id(id): first hyphen-separated segment if id has a hyphen and the segment
                  is at most TAG_MAX_LEN chars, else "legacy"
+readdress(record):                  # on every save, tasks and ideas
+    if id is three hyphen-separated segments of 2, 4 and 2 ID_ALPHABET chars:
+        id = "legacy-" + random(ID_SUFFIX_LEN); tag = "legacy"; log WARN to stderr
+    nothing else changes (no stamp); no link to the old ID is kept
 ```
 
 ### Render record
@@ -269,6 +273,7 @@ atomic_replace(path, text): mkdir parent; write sibling temp file; rename over p
 ### Save tasks
 *Serves:* G-1, G-3. [D]
 ```
+readdress(task) for each task
 stage(task) = lower(status) == "done" ? done : lower(status) == "verified" ? verified : todo
 group(s) = tasks where stage == s, sorted by priority desc (stable)
 write_atomic(tasks_file, render(group(todo)))
@@ -279,6 +284,7 @@ for (s, file) in [(done, done_tasks_file), (verified, verified_tasks_file)]:
 ### Save ideas
 *Serves:* G-3. [D]
 ```
+readdress(idea) for each idea
 ideas sorted by (is_done, score desc), stable;  is_done = description starts with "(Done)"
 write_atomic(ideas_file, render(ideas))
 idea load returns the same order

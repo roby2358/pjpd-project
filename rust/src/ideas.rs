@@ -7,7 +7,9 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value, json};
 
-use crate::record::{parse_record, push_description, resolve_id, stamp, tag_from_id};
+use crate::record::{
+    parse_record, push_description, readdress_legacy, resolve_id, stamp, tag_from_id,
+};
 use crate::{ids, textrec};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -48,6 +50,15 @@ impl Idea {
     /// Set created timestamp if not already set, and refresh updated.
     pub fn stamp(&mut self) {
         stamp(&mut self.created, &mut self.updated);
+    }
+
+    /// Replace a legacy `XX-XXXX-XX` ID with a fresh `legacy-XXXX` one (D-8);
+    /// any other ID is unchanged.
+    pub fn readdress(&mut self) {
+        if let Some(id) = readdress_legacy(&self.id, "idea") {
+            self.tag = tag_from_id(&id);
+            self.id = id;
+        }
     }
 
     /// Render back to on-disk record form: each property on its own line,
@@ -114,6 +125,7 @@ impl IdeaStore {
         if let Some(parent) = self.ideas_file.parent() {
             fs::create_dir_all(parent)?;
         }
+        ideas.iter_mut().for_each(Idea::readdress);
         Self::sort(ideas);
         let content = textrec::join_records(ideas.iter().map(|i| i.to_text()));
         textrec::write_atomic(&self.ideas_file, &content)

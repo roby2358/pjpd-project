@@ -4,6 +4,12 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Legacy IDs are rewritten on save
+A record salvaged with an old-form `XX-XXXX-XX` ID used to keep it forever, and since that
+form fails the valid-ID check, no tool could address the record. Saving tasks or ideas
+now rewrites each old-form ID to a fresh `legacy-XXXX` ID with tag `legacy` (D-8, Salvage
+ID rule). R-6 extended with three tests.
+
 ### 2026-11-12 — Bulk updates do one load and one save
 `pjpd_mark_task` (`done`, `verified`), `pjpd_reprioritize_task` and `pjpd_mark_idea_done`
 used to patch each listed ID with its own load and save, so a batch of N left N backups

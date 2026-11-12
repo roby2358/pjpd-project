@@ -124,6 +124,14 @@ Updated: 2026-11-12T22:09:49Z
 
 Preserve oversized numeric values in Priority and Score lines when loading hand-edited files. The parser consumes any all-digit value but silently substitutes the default when it exceeds 64-bit integer range, losing the original value with no trace; the retired Python implementation preserved arbitrary precision integers. Either leave the unparseable line in the description or clamp with a logged warning.
 ----
+Priority:   52
+Status: Done
+ID: bakcollide-7sub
+Created: 2026-11-12T21:56:27Z
+Updated: 2026-11-12T22:12:45Z
+
+Backup names in pjpd/bak/ use a per-second timestamp (textrec::timestamp, %Y%m%d%H%M%S), and fs::rename overwrites an existing target, so two writes of the same file within one second leave only the later backup: the earlier pre-write version is silently lost, weakening the D-12 backup promise. Make backup names unique, e.g. add sub-second precision or a numeric suffix when the name is taken, and add an R-12 test that two writes in the same second leave two backups. Update ONTOLOGY's on-disk format for the backup name, the R-12 row, and add an ARCHITECTURE_LOG entry.
+----
 Priority:    0
 Status: Done
 ID: timestamps-q2jp

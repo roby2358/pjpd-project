@@ -1,11 +1,3 @@
-Priority:   60
-Status: ToDo
-ID: legacyid-5s5w
-Created: 2026-08-13T22:38:03Z
-Updated: 2026-11-12T19:14:32Z
-
-When saving a record whose ID is in the legacy XX-XXXX-XX form (produced by the parser's salvage fallback), rewrite it to a valid tag-based ID so the record becomes addressable by the tools again. No need to preserve the old ID or leave a link; nothing external references these IDs yet. Applies to both task and idea stores.
-----
 Priority:   58
 Status: ToDo
 ID: covergaps-qxmr

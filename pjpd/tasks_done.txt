@@ -100,6 +100,14 @@ Updated: 2026-11-12T21:56:25Z
 
 Make bulk task updates (mark_task_done, reprioritize_task, and whatever mark command replaces mark_task_done) do one load, apply the patch to every listed task in memory, and one save. Today each ID is patched with its own load and save, so a batch of N leaves N backups in pjpd/bak/, and a disk error partway through leaves the batch half applied, breaking the all-or-nothing promise (RATIONALE D-16). Add an R-17 test that a batch produces exactly one tasks.txt backup, update the D-16 known-gap note and the abuse table row in RATIONALE.md, and add an ARCHITECTURE_LOG entry.
 ----
+Priority:   60
+Status: Done
+ID: legacyid-5s5w
+Created: 2026-08-13T22:38:03Z
+Updated: 2026-11-12T22:00:21Z
+
+When saving a record whose ID is in the legacy XX-XXXX-XX form (produced by the parser's salvage fallback), rewrite it to a valid tag-based ID so the record becomes addressable by the tools again. No need to preserve the old ID or leave a link; nothing external references these IDs yet. Applies to both task and idea stores.
+----
 Priority:    0
 Status: Done
 ID: timestamps-q2jp

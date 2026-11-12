@@ -4,6 +4,14 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — pjpd_list_tasks names the file it listed
+`pjpd_list_tasks` always reported `tasks.txt` as its `project_file`, even when `status`
+was `done` or `verified` and the tasks came from `tasks_done.txt` or
+`tasks_verified.txt`, contradicting R-24. It now reports the file of the requested Stage,
+via a new `TaskStore::stage_file` that the save split also uses. Other tools keep their
+`project_file`. R-24 extended with one test; its every-tool test now expects
+`tasks_done.txt` for listing done.
+
 ### 2026-11-12 — Every number in the Numbers table is a named constant
 Several Numbers-table values were literals repeated across modules (TAG_MAX_LEN in three
 files, VALUE_MAX and COUNT_MAX in each validation call and schema attribute). Each table

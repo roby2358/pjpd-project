@@ -397,9 +397,10 @@ impl PjpdServer {
         let mut result = Map::new();
         result.insert("total_tasks".to_string(), json!(total));
         result.insert("tasks".to_string(), json!(task_dicts));
+        // project_file names the file listed (R-24).
         result.insert(
             "project_file".to_string(),
-            json!(self.tasks().tasks_file.to_string_lossy()),
+            json!(self.tasks().stage_file(stage).to_string_lossy()),
         );
         let mut result = self.with_warning(result);
         if total > params.count as usize {

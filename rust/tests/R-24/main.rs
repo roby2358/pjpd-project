@@ -38,6 +38,24 @@ async fn put_task_result_includes_project_file() {
     );
 }
 
+// R-24: pjpd_list_tasks names the file it listed: tasks.txt for todo,
+// tasks_done.txt for done, tasks_verified.txt for verified, even before an
+// archive file exists.
+#[tokio::test]
+async fn list_tasks_names_the_listed_file() {
+    let (dir, server) = server();
+    for (status, file) in [
+        ("todo", "tasks.txt"),
+        ("done", "tasks_done.txt"),
+        ("verified", "tasks_verified.txt"),
+    ] {
+        let body = list_tasks(&server, status).await;
+        let expected = dir.path().join("pjpd").join(file);
+        assert_eq!(body["project_file"], expected.to_string_lossy().as_ref());
+        assert!(file == "tasks.txt" || !expected.exists());
+    }
+}
+
 /// The response with its keys checked: exactly success, result and error.
 fn envelope(result: &CallToolResult) -> Value {
     let response = response_json(result);
@@ -48,14 +66,19 @@ fn envelope(result: &CallToolResult) -> Value {
 }
 
 // R-24: every tool's success result names the full path of the file it
-// operated on: tasks.txt for task tools, ideas.txt for idea tools and for
-// demoting a task.
+// operated on: tasks.txt for task tools (tasks_done.txt for listing done),
+// ideas.txt for idea tools and for demoting a task.
 #[tokio::test]
 async fn every_tool_success_names_its_project_file() {
     let (dir, server) = server();
     let tasks_file = dir
         .path()
         .join("pjpd/tasks.txt")
+        .to_string_lossy()
+        .into_owned();
+    let done_tasks_file = dir
+        .path()
+        .join("pjpd/tasks_done.txt")
         .to_string_lossy()
         .into_owned();
     let ideas_file = dir
@@ -109,7 +132,11 @@ async fn every_tool_success_names_its_project_file() {
             assert_success(&mark_tasks(&server, &[&b], "verified").await),
             &tasks_file,
         ),
-        ("list done", list_tasks(&server, "done").await, &tasks_file),
+        (
+            "list done",
+            list_tasks(&server, "done").await,
+            &done_tasks_file,
+        ),
         (
             "mark idea",
             assert_success(&mark_tasks(&server, &[&c], "idea").await),

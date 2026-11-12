@@ -185,6 +185,16 @@ impl TaskStore {
         }
     }
 
+    /// The file a stage's tasks are saved to: todo → tasks.txt, done →
+    /// tasks_done.txt, verified → tasks_verified.txt (R-10, R-16, R-24).
+    pub fn stage_file(&self, stage: Stage) -> &Path {
+        match stage {
+            Stage::Todo => &self.tasks_file,
+            Stage::Done => &self.done_tasks_file,
+            Stage::Verified => &self.verified_tasks_file,
+        }
+    }
+
     /// Warning when a `pjpd/<dir_name>.txt` file from the old multi-project
     /// layout still exists.
     pub fn legacy_warning(&self) -> Option<String> {
@@ -233,20 +243,18 @@ impl TaskStore {
         };
 
         let (_, todo_content) = render_stage(Stage::Todo);
-        textrec::write_atomic(&self.tasks_file, &todo_content)?;
+        textrec::write_atomic(self.stage_file(Stage::Todo), &todo_content)?;
 
-        [
-            (Stage::Done, &self.done_tasks_file),
-            (Stage::Verified, &self.verified_tasks_file),
-        ]
-        .into_iter()
-        .try_for_each(|(stage, path)| {
-            let (empty, content) = render_stage(stage);
-            if empty && !path.exists() {
-                return Ok(());
-            }
-            textrec::write_atomic_no_backup(path, &content)
-        })
+        [Stage::Done, Stage::Verified]
+            .into_iter()
+            .try_for_each(|stage| {
+                let path = self.stage_file(stage);
+                let (empty, content) = render_stage(stage);
+                if empty && !path.exists() {
+                    return Ok(());
+                }
+                textrec::write_atomic_no_backup(path, &content)
+            })
     }
 
     /// Add a new task, creating the pjpd directory and tasks file if needed.

@@ -14,6 +14,14 @@ Updated: 2026-08-13T23:05:40Z
 
 Parse record properties only from the leading run of property lines, treating everything after the first non-property line as description. Currently every line of a record is scanned for key-value patterns, so description text that happens to contain a status or id line overrides the record's real header fields on reload (later duplicate wins), letting a task silently rename itself, complete itself, or change priority. Fixing this changes the parse side of the on-disk contract; update the parser tests that pin it.
 ----
+Priority:   75
+Status: Done
+ID: skillmd-h6kj
+Created: 2026-11-12T19:09:47Z
+Updated: 2026-11-12T21:06:07Z
+
+Write a SKILL.md for pjpd that teaches agents how to use it. Cover: when to use tasks vs ideas vs epics; the interview process that turns an idea into tasks (the agent asks the user questions until the idea is concrete, then files one or more fully fleshed-out tasks with put_task and closes the idea with mark_idea_done; no new command); what a task needs before it's ready (goal, settled design calls, done-when); when to demote a task back to an idea because it isn't fleshed out enough; done vs verified; tag naming (describe the task, not the project; max 12 chars, alphanumerics and hyphens); priorities; and the agent-loop workflow (one task per agent, a decisions log, mark done after commit, the user marks verified). Ideas and tasks are never linked to each other. Write it after the mark command supports done/verified/idea states so the skill documents the real commands. Reference it from README.md.
+----
 Priority:   70
 Status: Done
 ID: hrescape-3utd

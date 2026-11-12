@@ -52,14 +52,6 @@ Add a summary mode to list_tasks (and list_ideas): a flag, e.g. summary: true, t
 
 While changing the list responses, make the two list tools consistent: total_tasks / total_ideas currently report the number returned, not the total (rename or fix); list_ideas never says when it truncated (list_tasks adds an info line); list_ideas includes created/updated while list_tasks omits them. Update the ONTOLOGY commands table, CRITERIA R-16/R-21, README_API.md, and add an ARCHITECTURE_LOG entry.
 ----
-Priority:   75
-Status: ToDo
-ID: skillmd-h6kj
-Created: 2026-11-12T19:09:47Z
-Updated: 2026-11-12T19:14:31Z
-
-Write a SKILL.md for pjpd that teaches agents how to use it. Cover: when to use tasks vs ideas vs epics; the interview process that turns an idea into tasks (the agent asks the user questions until the idea is concrete, then files one or more fully fleshed-out tasks with put_task and closes the idea with mark_idea_done; no new command); what a task needs before it's ready (goal, settled design calls, done-when); when to demote a task back to an idea because it isn't fleshed out enough; done vs verified; tag naming (describe the task, not the project; max 12 chars, alphanumerics and hyphens); priorities; and the agent-loop workflow (one task per agent, a decisions log, mark done after commit, the user marks verified). Ideas and tasks are never linked to each other. Write it after the mark command supports done/verified/idea states so the skill documents the real commands. Reference it from README.md.
-----
 Priority:   70
 Status: ToDo
 ID: schemabounds-gyk3

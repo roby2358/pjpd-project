@@ -118,6 +118,10 @@ If pjpd finds `pjpd/<directory-name>.txt` (from an older multi-project layout), 
 
 See [README_API.md](README_API.md) for every MCP tool and prompt.
 
+## Agent Workflow
+
+[SKILL.md](SKILL.md) is a Claude Code skill (`pjpd-workflow`) that teaches agents the process: interview the user to turn ideas into tasks, work one task per session, mark it done after commit, and mark it verified once the user has checked it. Copy it to `~/.claude/skills/pjpd-workflow/SKILL.md` (or a project's `.claude/skills/pjpd-workflow/`) to use it.
+
 ## Usage Examples
 
 ### Tasks

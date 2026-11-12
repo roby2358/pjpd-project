@@ -119,3 +119,36 @@ fn task_load_reads_all_three_files() {
     assert!(ids.contains(&finish.id.as_str()));
     assert!(ids.contains(&check.id.as_str()));
 }
+
+// R-10: statuses match case-insensitively (D-6): hand-edited `done` and
+// `VERIFIED` statuses are archived on the next save, keeping their spelling.
+#[test]
+fn hand_edited_status_case_is_archived() {
+    let dir = TempDir::new().unwrap();
+    let store = TaskStore::new(dir.path());
+
+    let done = store.add("d", 5, "d").unwrap();
+    let verified = store.add("v", 5, "v").unwrap();
+    let text = std::fs::read_to_string(&store.tasks_file).unwrap();
+    let edited = text
+        .replace(
+            &format!("Status: ToDo\nID: {}", done.id),
+            &format!("Status: done\nID: {}", done.id),
+        )
+        .replace(
+            &format!("Status: ToDo\nID: {}", verified.id),
+            &format!("Status: VERIFIED\nID: {}", verified.id),
+        );
+    assert_ne!(text, edited);
+    std::fs::write(&store.tasks_file, edited).unwrap();
+
+    let other = store.add("t", 5, "t").unwrap();
+
+    let todo = std::fs::read_to_string(&store.tasks_file).unwrap();
+    let done_text = std::fs::read_to_string(&store.done_tasks_file).unwrap();
+    let verified_text = std::fs::read_to_string(&store.verified_tasks_file).unwrap();
+    assert!(todo.contains(&other.id));
+    assert!(!todo.contains(&done.id) && !todo.contains(&verified.id));
+    assert!(done_text.contains(&done.id) && done_text.contains("Status: done"));
+    assert!(verified_text.contains(&verified.id) && verified_text.contains("Status: VERIFIED"));
+}

@@ -4,6 +4,13 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Task statuses compared case-insensitively
+A task's stage used to come from an exact status match (`Done`, `Verified`), while the
+list filter was case-insensitive, so a hand-edited `done` stayed in `tasks.txt` and listed
+as todo. Now one case-insensitive comparison (`Stage::parse`) decides both the file a task
+is saved in and the filter, and the `ToDo` sort rank also ignores case (D-6). Status text
+is kept as written (D-8). R-10 and R-16 updated, each with a new test.
+
 ### 2026-11-12 — `pjpd_mark_task` replaces `pjpd_mark_task_done`; verified archive added
 `pjpd_mark_task_done(task_ids)` became `pjpd_mark_task(task_ids, state)` with state `done`,
 `verified` or `idea` (D-21); the tool count is unchanged. `verified` sets status

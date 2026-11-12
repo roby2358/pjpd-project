@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 use crate::ideas::IdeaStore;
-use crate::tasks::{STATUS_DONE, STATUS_VERIFIED, Stage, Task, TaskPatch, TaskStore};
+use crate::tasks::{STATUS_DONE, STATUS_TODO, STATUS_VERIFIED, Stage, Task, TaskPatch, TaskStore};
 use crate::validation;
 
 const INTRO_TEXT: &str = include_str!("../../resources/intro.txt");
@@ -232,7 +232,7 @@ impl PjpdServer {
 
     fn list_tasks_impl(&self, params: ListTasksParams) -> Result<CallToolResult, String> {
         validation::validate_range(params.count, 1, 1000, "count")?;
-        let stage = Stage::from_filter(&params.status).ok_or_else(|| {
+        let stage = Stage::parse(&params.status).ok_or_else(|| {
             format!(
                 "status must be one of 'todo', 'done' or 'verified' (got '{}')",
                 params.status
@@ -244,11 +244,11 @@ impl PjpdServer {
         let mut tasks = self.tasks().load();
         tasks.retain(|t| t.stage() == stage);
 
-        // Sort: status ToDo before other todo-file statuses, then priority
-        // desc, then description.
+        // Sort: status ToDo (any case, D-6) before other todo-file statuses,
+        // then priority desc, then description.
         tasks.sort_by_key(|t| {
             (
-                t.status != "ToDo",
+                !t.status.eq_ignore_ascii_case(STATUS_TODO),
                 std::cmp::Reverse(t.priority),
                 t.description.to_lowercase(),
             )

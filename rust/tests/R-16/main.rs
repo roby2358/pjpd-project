@@ -80,3 +80,44 @@ fn status_defaults_to_todo() {
     assert_eq!(params.status, "todo");
     assert_eq!(params.count, 20);
 }
+
+// R-16: statuses match case-insensitively (D-6): a hand-edited `done` in
+// tasks.txt lists under done, not todo, and a `todo` status sorts with ToDo.
+#[tokio::test]
+async fn hand_edited_status_case_lists_by_stage() {
+    let (dir, server) = server();
+    let low = create_task(&server, "low", "low", 1).await;
+    let lower = create_task(&server, "lower", "lower", 1).await;
+    let blocked = create_task(&server, "stuck", "stuck", 90).await;
+    let done = create_task(&server, "finished", "finished", 50).await;
+    let tasks_file = dir.path().join("pjpd/tasks.txt");
+    let text = std::fs::read_to_string(&tasks_file).unwrap();
+    let edited = text
+        .replace(
+            &format!("Status: ToDo\nID: {done}"),
+            &format!("Status: done\nID: {done}"),
+        )
+        .replace(
+            &format!("Status: ToDo\nID: {lower}"),
+            &format!("Status: todo\nID: {lower}"),
+        )
+        .replace(
+            &format!("Status: ToDo\nID: {blocked}"),
+            &format!("Status: Blocked\nID: {blocked}"),
+        );
+    std::fs::write(&tasks_file, edited).unwrap();
+
+    let todo = list_tasks(&server, "todo").await;
+    let ids: Vec<&str> = todo["tasks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| t["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, vec![low.as_str(), lower.as_str(), blocked.as_str()]);
+
+    let finished = list_tasks(&server, "done").await;
+    assert_eq!(finished["total_tasks"], 1);
+    assert_eq!(finished["tasks"][0]["id"], done.as_str());
+    assert_eq!(finished["tasks"][0]["status"], "done");
+}

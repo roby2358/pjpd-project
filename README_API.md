@@ -38,7 +38,7 @@ List the tasks in one status. Sorted with status `ToDo` before other statuses, t
 
 **Parameters:**
 - `count` (integer, optional): Maximum number of tasks to return (default: 20)
-- `status` (string, optional): `todo` (default; tasks in `pjpd/tasks.txt`, including unknown statuses such as `Blocked`), `done` (`pjpd/tasks_done.txt`) or `verified` (`pjpd/tasks_verified.txt`). Case-insensitive.
+- `status` (string, optional): `todo` (default; tasks in `pjpd/tasks.txt`, including unknown statuses such as `Blocked`), `done` (`pjpd/tasks_done.txt`) or `verified` (`pjpd/tasks_verified.txt`). Case-insensitive; a task's saved status is matched the same way, so a hand-edited `done` is archived and listed as done.
 
 #### `pjpd_mark_task`
 Move one or more tasks to a new state. All IDs must exist or nothing is changed.

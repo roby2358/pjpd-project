@@ -16,8 +16,9 @@ pub const STATUS_TODO: &str = "ToDo";
 pub const STATUS_DONE: &str = "Done";
 pub const STATUS_VERIFIED: &str = "Verified";
 
-/// Which task file a task is saved to, decided by an exact status match
-/// (R-10). Any status other than `Done` or `Verified` is a todo task.
+/// Which task file a task is saved to, decided by a case-insensitive status
+/// match (R-10, D-6). Any status other than `Done` or `Verified` (in any case)
+/// is a todo task.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Stage {
     Todo,
@@ -26,8 +27,10 @@ pub enum Stage {
 }
 
 impl Stage {
-    /// Parse a list filter value (`todo`, `done`, `verified`), case-insensitively.
-    pub fn from_filter(value: &str) -> Option<Stage> {
+    /// Parse a stage name (`todo`, `done`, `verified`), case-insensitively.
+    /// The one comparison rule for statuses: the list filter and a task's
+    /// saved status both go through it (D-6).
+    pub fn parse(value: &str) -> Option<Stage> {
         [
             ("todo", Stage::Todo),
             ("done", Stage::Done),
@@ -81,12 +84,10 @@ impl Task {
         })
     }
 
+    /// The task's stage, from its status case-insensitively, so a
+    /// hand-edited `done` is archived and listed like `Done` (D-6).
     pub fn stage(&self) -> Stage {
-        match self.status.as_str() {
-            STATUS_DONE => Stage::Done,
-            STATUS_VERIFIED => Stage::Verified,
-            _ => Stage::Todo,
-        }
+        Stage::parse(&self.status).unwrap_or(Stage::Todo)
     }
 
     /// Set created timestamp if not already set, and refresh updated.

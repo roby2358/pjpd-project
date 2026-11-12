@@ -85,8 +85,9 @@ server holds only paths.
 An idea has no status field. "Done" is derived: the description starts with `(Done)`.
 
 ### Stage
-*Serves:* G-3. Which task file a task belongs to, derived from its status by exact match:
-`Done` → done, `Verified` → verified, anything else → todo. Saving and the
+*Serves:* G-3. Which task file a task belongs to, derived from its status, compared
+case-insensitively: `Done` → done, `Verified` → verified, anything else → todo (so a
+hand-edited `done` is done). Saving and the
 `pjpd_list_tasks` status filter both use it, so every task lists under exactly one filter.
 
 ### TaskPatch
@@ -115,7 +116,7 @@ An idea has no status field. "Done" is derived: the description starts with `(Do
   between calls. Hand edits made between calls are always seen. *Serves:* G-1, G-2.
 - **Stage split.** After any task write, `tasks_done.txt` holds exactly the tasks whose
   status is `Done`, `tasks_verified.txt` exactly those whose status is `Verified`, and
-  `tasks.txt` all the rest (exact match; see Stage). Task load reads all three files.
+  `tasks.txt` all the rest (case-insensitive match; see Stage). Task load reads all three files.
   *Serves:* G-3.
 - **Tasks and ideas are unlinked.** No record refers to another; demoting a task to an idea
   copies its description and leaves no cross-reference. *Serves:* G-4.
@@ -268,7 +269,7 @@ atomic_replace(path, text): mkdir parent; write sibling temp file; rename over p
 ### Save tasks
 *Serves:* G-1, G-3. [D]
 ```
-stage(task) = status == "Done" ? done : status == "Verified" ? verified : todo
+stage(task) = lower(status) == "done" ? done : lower(status) == "verified" ? verified : todo
 group(s) = tasks where stage == s, sorted by priority desc (stable)
 write_atomic(tasks_file, render(group(todo)))
 for (s, file) in [(done, done_tasks_file), (verified, verified_tasks_file)]:
@@ -400,7 +401,7 @@ call, what format to use); nothing changes. Unexpected errors are wrapped as
 | Command (args) | Legal when | Effect | Success result |
 |---|---|---|---|
 | `pjpd_put_task(description, tag?, id?, priority?)` | Validation passes; with `id`, the task exists | `tag` → Create task with `priority` or DEFAULT_NEW_TASK_PRIORITY. `id` → Patch task: description replaced, priority replaced only if given | Task fields (id, priority, status, description, created, updated), `message` |
-| `pjpd_list_tasks(count = DEFAULT_COUNT, status = "todo")` | count in range; status is `todo`, `done` or `verified` | None. Filter: tasks whose Stage equals `status`. Sort: status `ToDo` before other statuses; priority desc; description lowercased. Truncate to `count` | `tasks` (id, priority, status, description), `total_tasks` (number returned), `info` when truncated |
+| `pjpd_list_tasks(count = DEFAULT_COUNT, status = "todo")` | count in range; status is `todo`, `done` or `verified` | None. Filter: tasks whose Stage equals `status`. Sort: status `ToDo` (any case) before other statuses; priority desc; description lowercased. Truncate to `count` | `tasks` (id, priority, status, description), `total_tasks` (number returned), `info` when truncated |
 | `pjpd_mark_task(task_ids, state)` | state is `done`, `verified` or `idea`; every ID valid and existing | `done` → Bulk task update with status `Done` (moves each to `tasks_done.txt`). `verified` → Bulk task update with status `Verified` (moves each to `tasks_verified.txt`), from any stage. `idea` → Demote tasks | `done`/`verified`: `tasks` (full task fields), `message`. `idea`: `ideas` (full idea fields), `project_file` naming `ideas.txt`, `message` |
 | `pjpd_reprioritize_task(priority, task_ids)` | priority in range; every ID valid and existing | Bulk task update with the priority | `tasks` (full task fields), `message` |
 | `pjpd_put_idea(score, description, tag?, id?)` | Validation passes; with `id`, the idea exists | `tag` → create idea. `id` → replace description and score | Idea fields (id, score, description, created, updated), `message` |

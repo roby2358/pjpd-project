@@ -85,11 +85,17 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   (G-3). Keeping it in separate archives preserves the record (G-1). Done tasks (in
   `tasks_done.txt`) wait for the user's review; Verified ones (in `tasks_verified.txt`) are
   finished for good, so one file per stage lets the user see the review queue at a glance
-  and lets `pjpd_list_tasks` filter by file. The file is chosen by an exact status match,
-  and the list filter uses the same rule, so every task lists under exactly one status
+  and lets `pjpd_list_tasks` filter by file. The file is chosen by a case-insensitive status
+  match, and the list filter uses the same rule, so every task lists under exactly one status
   value; an unknown status such as `Blocked` stays in `tasks.txt` and lists as todo. The
   archives only grow by tasks that already had backups in `tasks.txt`'s history, so
   backing them up on every write would multiply `bak/` for no safety gain.
+- **Why case-insensitive:** a hand edit to `done` or `verified` plainly means Done or
+  Verified; an exact match would leave it in `tasks.txt`, listed as todo, while the tool
+  filter values were already case-insensitive (D-21). One comparison, `Stage::parse`,
+  serves both the saved status and the filter. The status text is kept as written rather
+  than normalized to `Done`/`Verified`, since statuses are open strings that round-trip
+  unchanged (D-8). The same rule puts a `todo` status in the `ToDo` sort rank.
 - **Why `tasks_verified.txt` rather than renaming the done file:** `tasks_done.txt` keeps its
   name so existing projects and older servers still read and write the same Done archive.
 
@@ -126,8 +132,7 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   no ID can be built.
 - **Known gaps (tracked as tasks):** an old-form ID fails the valid-ID check, so tools
   can't address that record; an oversized number is silently replaced with
-  DEFAULT_LOADED_PRIORITY; status comparison is exact (`Done`, `Verified`), so a
-  hand-edited `done` stays in `tasks.txt` and lists as todo.
+  DEFAULT_LOADED_PRIORITY.
 
 ## Server behavior
 

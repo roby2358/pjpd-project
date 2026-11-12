@@ -52,6 +52,16 @@ Trim the responses of every mutating tool (put_task, put_idea, mark_task_done, m
 ----
 Priority:   80
 Status: Done
+ID: listsummary-w9x5
+Created: 2026-11-12T02:50:00Z
+Updated: 2026-11-12T21:48:13Z
+
+Add a summary mode to list_tasks (and list_ideas): a flag, e.g. summary: true, that returns for each record only the ID, priority/score, status, and the first line (or first ~100 characters) of the description. A full listing of 9 tasks costs ~2-3k tokens today; a summary would let an agent scan the backlog cheaply and read full text only for the task it picks. Consider making summary the default with full: true to opt in.
+
+While changing the list responses, make the two list tools consistent: total_tasks / total_ideas currently report the number returned, not the total (rename or fix); list_ideas never says when it truncated (list_tasks adds an info line); list_ideas includes created/updated while list_tasks omits them. Update the ONTOLOGY commands table, CRITERIA R-16/R-21, README_API.md, and add an ARCHITECTURE_LOG entry.
+----
+Priority:   80
+Status: Done
 ID: headerparse-z7xw
 Created: 2026-08-13T21:07:09Z
 Updated: 2026-08-13T23:05:40Z

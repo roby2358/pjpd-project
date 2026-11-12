@@ -108,6 +108,14 @@ Updated: 2026-11-12T22:00:21Z
 
 When saving a record whose ID is in the legacy XX-XXXX-XX form (produced by the parser's salvage fallback), rewrite it to a valid tag-based ID so the record becomes addressable by the tools again. No need to preserve the old ID or leave a link; nothing external references these IDs yet. Applies to both task and idea stores.
 ----
+Priority:   58
+Status: Done
+ID: covergaps-qxmr
+Created: 2026-11-12T19:27:46Z
+Updated: 2026-11-12T22:07:15Z
+
+Close the partial-coverage gaps listed in the Status section of CRITERIA.md, each test in its rule's rust/tests/R-n/ directory: R-6 invalid Tag: drops the record through a full file load; R-8 Score default when missing; R-9 stamping a record with no timestamps on patch, and stamping on idea update and idea mark done; R-15 empty description and empty ID list rejected; R-16 case-insensitive todo filter, ranking of statuses other than ToDo/Done, description tiebreak; R-20 unknown idea ID fails; R-21 list_ideas truncates to count; R-22 unknown idea IDs change nothing; R-24 project_file present on every tool's success result. Remove each closed gap from the CRITERIA Status list.
+----
 Priority:    0
 Status: Done
 ID: timestamps-q2jp

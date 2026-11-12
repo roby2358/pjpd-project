@@ -34,6 +34,13 @@ Updated: 2026-11-12T22:00:23Z
 
 Hand-typed IDs that are neither the valid `<tag>-XXXX` form nor the legacy XX-XXXX-XX form (e.g. `ID: custom`) are kept as is on load and save, so no tool can address that record. legacyid-5s5w rewrites only the legacy form. Consider whether any invalid explicit ID should also be rewritten on save (D-8, R-6), or reported by a list tool instead.
 ----
+Score:   30
+ID: blankdesc-yqdp
+Created: 2026-11-12T22:07:17Z
+Updated: 2026-11-12T22:07:17Z
+
+Reject whitespace-only descriptions in pjpd_put_task and pjpd_put_idea. validate_non_empty_description checks description.is_empty(), so "   " passes, and the store then trims it to an empty description, saving a record with no text. ONTOLOGY's request rules say only "description: non-empty"; decide whether non-empty means after trimming, and if so validate on trim() and add an R-15 case.
+----
 Score:    0
 ID: mark-done-dh2y
 

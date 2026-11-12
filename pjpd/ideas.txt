@@ -20,6 +20,13 @@ Updated: 2026-11-12T19:34:41Z
 
 Track usage stats in pjpd/usage.md: pjpd records how it is actually used (for example calls per tool, tasks created / marked done / reprioritized, response sizes) in a human-readable markdown file next to the task files, so the person and agents can see which tools earn their place and where tokens go. Open questions before this becomes a task: which stats are worth keeping, whether the file is rewritten as running totals or appended per session, whether it is committed or gitignored like bak/, and how it fits the stateless design (the server rereads files on every call and holds no counters).
 ----
+Score:   30
+ID: multifile-sife
+Created: 2026-11-12T21:56:30Z
+Updated: 2026-11-12T21:56:30Z
+
+A task save writes tasks.txt, tasks_done.txt and tasks_verified.txt one after another, and demoting a task writes ideas.txt before the task files. A disk error between two of those writes can leave a batch split across files, for example a task removed from tasks.txt but not yet written to tasks_done.txt, which loses it. Options: write the archive files before tasks.txt so a failure duplicates a task rather than losing it (as demote already does), or stage every file and rename them together. Recorded as a known gap under D-16 in RATIONALE.md.
+----
 Score:    0
 ID: mark-done-dh2y
 

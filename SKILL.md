@@ -59,8 +59,8 @@ Spawn an agent to work one task.
 1. Take the highest-priority todo task from `pjpd_list_tasks`, and never take a task below priority 50, unless the user names one specifically.
 2. Do the work the description asks for, and nothing more.
 3. Run the done-when check.
-4. Commit the work, following the project's commit rules.
-5. Right after the commit, mark the task done with `pjpd_mark_task(task_ids, state: "done")`.
+4. Mark the task done with `pjpd_mark_task(task_ids, state: "done")`.
+5. Commit the work and the `pjpd/` change together in one commit, following the project's commit rules. Don't make a separate commit just for marking the task done.
 6. Report what you did, any judgment calls you made, and anything you filed.
 
 ### Open questions while working
@@ -83,7 +83,7 @@ List what you filed in your report.
 
 ## Done and verified
 
-- **Done** means an agent finished the work and committed it. You mark tasks done.
+- **Done** means an agent finished the work and committed it. You mark tasks done, in the same commit as the work.
 - **Verified** means the user reviewed the work or tried it out and is satisfied. Mark a task verified with `pjpd_mark_task(task_ids, state: "verified")` only when the user tells you to. Never mark verified on your own judgment. A task can go straight from todo to verified if the user says so.
 
 If the user finds a problem with a done task, leave that task as it is. File a new task that describes what's wrong and what the fix should do.

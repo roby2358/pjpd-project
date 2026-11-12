@@ -1,11 +1,3 @@
-Priority:   55
-Status: ToDo
-ID: intoverflow-dsee
-Created: 2026-08-13T21:07:24Z
-Updated: 2026-11-12T19:14:33Z
-
-Preserve oversized numeric values in Priority and Score lines when loading hand-edited files. The parser consumes any all-digit value but silently substitutes the default when it exceeds 64-bit integer range, losing the original value with no trace; the retired Python implementation preserved arbitrary precision integers. Either leave the unparseable line in the description or clamp with a logged warning.
-----
 Priority:   52
 Status: ToDo
 ID: numconsts-pmur

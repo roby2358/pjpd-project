@@ -18,6 +18,7 @@ async fn put_task_result_includes_project_file() {
             tag: Some("docs".to_string()),
             id: None,
             priority: Some(7),
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));

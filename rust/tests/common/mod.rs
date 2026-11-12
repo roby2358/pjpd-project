@@ -53,6 +53,7 @@ pub async fn create_task(
             tag: Some(tag.to_string()),
             id: None,
             priority: Some(priority),
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));
@@ -65,6 +66,7 @@ pub async fn mark_tasks(server: &PjpdServer, task_ids: &[&str], state: &str) -> 
         .pjpd_mark_task(Parameters(MarkTaskParams {
             task_ids: task_ids.iter().map(|id| id.to_string()).collect(),
             state: state.to_string(),
+            verbose: false,
         }))
         .await;
     response_json(&result)

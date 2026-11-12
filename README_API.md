@@ -18,6 +18,8 @@ On failure, `success` is `false`, `result` is `""`, and `error` contains an acti
 
 Every successful result includes a `project_file` property with the full path to the data file being operated on. Task tool results may also include a `warning` property if a legacy project file is detected (see [Legacy Warning](#legacy-project-file-warning)).
 
+Every write tool (`pjpd_put_task`, `pjpd_mark_task`, `pjpd_reprioritize_task`, `pjpd_put_idea`, `pjpd_mark_idea_done`) takes an optional `verbose` (boolean, default `false`). By default the result names each task it touched by `id`, `status` and `priority`, and each idea by `id` and `score`, with no description or timestamps, to keep responses short. With `verbose: true` it returns the full records (description, `created`, `updated` included).
+
 > **Note**: Tag fields are used internally for ID generation but are not included in API responses. When creating new tasks or ideas, you must provide a tag, but the tag will not be returned in response data.
 
 ## MCP Tools
@@ -32,6 +34,9 @@ Create or update a task. Provide `tag` to create a new task, or `id` to update a
 - `tag` (string, conditional): Tag string (1-12 characters, alphanumeric and hyphens only). Provide to create a new task.
 - `id` (string, conditional): Existing task ID (format: `<tag>-XXXX`). Provide to update.
 - `priority` (integer, optional): Priority from 0 (negligible) to 100 (urgent); values up to 9999 are accepted for exceptional cases. Defaults to 50 when creating. When updating, omit to keep the existing priority.
+- `verbose` (boolean, optional): Return the full task. Default `false`.
+
+**Result:** `id`, `status`, `priority`, `project_file`, `message`; with `verbose`, also `description`, `created`, `updated`.
 
 #### `pjpd_list_tasks`
 List the tasks in one status. Sorted with status `ToDo` before other statuses, then by priority descending, then by description.
@@ -43,13 +48,14 @@ List the tasks in one status. Sorted with status `ToDo` before other statuses, t
 #### `pjpd_mark_task`
 Move one or more tasks to a new state. All IDs must exist or nothing is changed.
 
-- `done`: an agent finished and committed the work. Status becomes `Done`; each task moves to `pjpd/tasks_done.txt`. Result: `tasks` (full task fields), `message`.
+- `done`: an agent finished and committed the work. Status becomes `Done`; each task moves to `pjpd/tasks_done.txt`. Result: `tasks` (each `id`, `status`, `priority`; full task fields with `verbose`), `message`.
 - `verified`: the user reviewed or tried the work. Allowed from done or straight from todo. Status becomes `Verified`; each task moves to `pjpd/tasks_verified.txt`. Result: `tasks`, `message`.
-- `idea`: demote. Each task's description becomes a new idea (a fresh ID with the task's tag, score 50, no link back to the task) and the task is removed from the task files. Result: `ideas` (full idea fields), `project_file` naming `pjpd/ideas.txt`, `message`.
+- `idea`: demote. Each task's description becomes a new idea (a fresh ID with the task's tag, score 50, no link back to the task) and the task is removed from the task files. Result: `ideas` (each `id`, `score`; full idea fields with `verbose`), `project_file` naming `pjpd/ideas.txt`, `message`.
 
 **Parameters:**
 - `task_ids` (list of strings, required): Tag-based task IDs (format: `<tag>-XXXX`)
 - `state` (string, required): `done`, `verified` or `idea`. Case-insensitive.
+- `verbose` (boolean, optional): Return the full records. Default `false`.
 
 #### `pjpd_reprioritize_task`
 Set the priority of one or more tasks without resending the description text. All IDs must exist or nothing is changed.
@@ -57,6 +63,9 @@ Set the priority of one or more tasks without resending the description text. Al
 **Parameters:**
 - `priority` (integer, required): New priority to apply to every listed task. 0 (negligible) to 100 (urgent); values up to 9999 are accepted for exceptional cases.
 - `task_ids` (list of strings, required): Tag-based task IDs (format: `<tag>-XXXX`)
+- `verbose` (boolean, optional): Return the full tasks. Default `false`.
+
+**Result:** `tasks` (each `id`, `status`, `priority`; full task fields with `verbose`), `project_file`, `message`.
 
 ### Idea Management
 
@@ -68,6 +77,9 @@ Create or update an idea. Provide `tag` to create a new idea, or `id` to update 
 - `description` (string, required): What the idea entails
 - `tag` (string, conditional): Tag string (1-12 characters, alphanumeric and hyphens only). Provide to create a new idea.
 - `id` (string, conditional): Existing idea ID (format: `<tag>-XXXX`). Provide to update.
+- `verbose` (boolean, optional): Return the full idea. Default `false`.
+
+**Result:** `id`, `score`, `project_file`, `message`; with `verbose`, also `description`, `created`, `updated`.
 
 #### `pjpd_list_ideas`
 List ideas: active ideas first, then done ones, each by score (highest first).
@@ -80,6 +92,9 @@ Mark one or more ideas as done (description prefixed with `(Done)`; the score is
 
 **Parameters:**
 - `idea_ids` (list of strings, required): Tag-based idea IDs (format: `<tag>-XXXX`)
+- `verbose` (boolean, optional): Return the full ideas. Default `false`.
+
+**Result:** `ideas` (each `id`, `score`; full idea fields with `verbose`), `project_file`, `message`.
 
 ## MCP Prompts
 

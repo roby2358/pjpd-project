@@ -22,6 +22,7 @@ async fn mark_idea_done_prefixes_description_and_preserves_score() {
                 description: "keep my score".to_string(),
                 tag: Some("keep".to_string()),
                 id: None,
+                verbose: false,
             }))
             .await,
     ));
@@ -30,6 +31,7 @@ async fn mark_idea_done_prefixes_description_and_preserves_score() {
     let result = server
         .pjpd_mark_idea_done(Parameters(MarkIdeaDoneParams {
             idea_ids: vec![id.clone()],
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));

@@ -4,6 +4,15 @@ Dated entries, newest first, one per structural or design change. This is the on
 that records what things used to be. Entries before 2026-11-12 are reconstructed from
 `git log` and the retired SPEC.md.
 
+### 2026-11-12 — Write tools return lean results; `verbose` opts into full records
+The five write tools (`pjpd_put_task`, `pjpd_mark_task`, `pjpd_reprioritize_task`,
+`pjpd_put_idea`, `pjpd_mark_idea_done`) used to echo every touched record in full,
+description and timestamps included. They now take `verbose` (default false) and by
+default report each task by id, status and priority and each idea by id and score
+(D-14, X-1). `pjpd_mark_idea_done` returned `idea_ids`; it now returns `ideas` in the same
+summary shape. No tool was added (D-18). New row R-27; R-26 updated; X-1 moved from not
+yet covered to manual. R-9, R-14, R-19 and R-26 tests adjusted to the lean default.
+
 ### 2026-11-12 — Task statuses compared case-insensitively
 A task's stage used to come from an exact status match (`Done`, `Verified`), while the
 list filter was case-insensitive, so a hand-edited `done` stayed in `tasks.txt` and listed

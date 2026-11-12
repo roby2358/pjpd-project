@@ -391,22 +391,26 @@ Every constant, by name. The rest of the doc set refers to these names, never th
 pjpd is an MCP server on stdio (server name `projectmcp`). Every tool returns a Response
 (see Entities) as JSON text. A legal call returns `success: true` with a result that includes
 `project_file`, the full path of the file operated on. Task tools also include `warning`
-when the Legacy warning rule fires. A call that fails validation or names unknown IDs
-returns `success: false`, `result: ""`, and an `error` naming the next step (which tool to
-call, what format to use); nothing changes. Unexpected errors are wrapped as
+when the Legacy warning rule fires. The write tools (every tool but the two list tools)
+take `verbose` (default false): by default they report each task they touched as its
+task summary (id, status, priority) and each idea as its idea summary (id, score), with no
+description or timestamps; `verbose: true` returns the full fields instead (D-14). A
+call that fails validation or names unknown IDs returns `success: false`, `result: ""`,
+and an `error` naming the next step (which tool to call, what format to use); nothing
+changes. Unexpected errors are wrapped as
 `"Error <doing X>: <detail>"`.
 
 ### Tools
 
 | Command (args) | Legal when | Effect | Success result |
 |---|---|---|---|
-| `pjpd_put_task(description, tag?, id?, priority?)` | Validation passes; with `id`, the task exists | `tag` → Create task with `priority` or DEFAULT_NEW_TASK_PRIORITY. `id` → Patch task: description replaced, priority replaced only if given | Task fields (id, priority, status, description, created, updated), `message` |
+| `pjpd_put_task(description, tag?, id?, priority?, verbose = false)` | Validation passes; with `id`, the task exists | `tag` → Create task with `priority` or DEFAULT_NEW_TASK_PRIORITY. `id` → Patch task: description replaced, priority replaced only if given | Task summary fields (id, status, priority), or with `verbose` the full task fields (id, priority, status, description, created, updated); `message` |
 | `pjpd_list_tasks(count = DEFAULT_COUNT, status = "todo")` | count in range; status is `todo`, `done` or `verified` | None. Filter: tasks whose Stage equals `status`. Sort: status `ToDo` (any case) before other statuses; priority desc; description lowercased. Truncate to `count` | `tasks` (id, priority, status, description), `total_tasks` (number returned), `info` when truncated |
-| `pjpd_mark_task(task_ids, state)` | state is `done`, `verified` or `idea`; every ID valid and existing | `done` → Bulk task update with status `Done` (moves each to `tasks_done.txt`). `verified` → Bulk task update with status `Verified` (moves each to `tasks_verified.txt`), from any stage. `idea` → Demote tasks | `done`/`verified`: `tasks` (full task fields), `message`. `idea`: `ideas` (full idea fields), `project_file` naming `ideas.txt`, `message` |
-| `pjpd_reprioritize_task(priority, task_ids)` | priority in range; every ID valid and existing | Bulk task update with the priority | `tasks` (full task fields), `message` |
-| `pjpd_put_idea(score, description, tag?, id?)` | Validation passes; with `id`, the idea exists | `tag` → create idea. `id` → replace description and score | Idea fields (id, score, description, created, updated), `message` |
+| `pjpd_mark_task(task_ids, state, verbose = false)` | state is `done`, `verified` or `idea`; every ID valid and existing | `done` → Bulk task update with status `Done` (moves each to `tasks_done.txt`). `verified` → Bulk task update with status `Verified` (moves each to `tasks_verified.txt`), from any stage. `idea` → Demote tasks | `done`/`verified`: `tasks` (task summaries; full task fields with `verbose`), `message`. `idea`: `ideas` (idea summaries; full idea fields with `verbose`), `project_file` naming `ideas.txt`, `message` |
+| `pjpd_reprioritize_task(priority, task_ids, verbose = false)` | priority in range; every ID valid and existing | Bulk task update with the priority | `tasks` (task summaries; full task fields with `verbose`), `message` |
+| `pjpd_put_idea(score, description, tag?, id?, verbose = false)` | Validation passes; with `id`, the idea exists | `tag` → create idea. `id` → replace description and score | Idea summary fields (id, score), or with `verbose` the full idea fields (id, score, description, created, updated); `message` |
 | `pjpd_list_ideas(count = DEFAULT_COUNT)` | count in range | None. Save-ideas order, truncated to `count` | `ideas` (full idea fields), `total_ideas` (number returned), `message` |
-| `pjpd_mark_idea_done(idea_ids)` | Every ID valid and existing | Mark idea done for each | `idea_ids`, `message` |
+| `pjpd_mark_idea_done(idea_ids, verbose = false)` | Every ID valid and existing | Mark idea done for each | `ideas` (idea summaries in save order; full idea fields with `verbose`), `message` |
 
 ### Prompts
 

@@ -17,7 +17,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
-use crate::ideas::IdeaStore;
+use crate::ideas::{Idea, IdeaStore};
 use crate::tasks::{STATUS_DONE, STATUS_TODO, STATUS_VERIFIED, Stage, Task, TaskPatch, TaskStore};
 use crate::validation;
 
@@ -57,6 +57,11 @@ pub struct PutTaskParams {
     /// task. When updating, omit to preserve the task's existing priority.
     #[serde(default)]
     pub priority: Option<i64>,
+    /// Return the full record(s), description and timestamps included.
+    /// Defaults to false: the result gives each task's id, status and
+    /// priority only, to keep responses short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -79,6 +84,11 @@ pub struct MarkTaskParams {
     /// or straight from todo; moves to tasks_verified.txt), or "idea" (demote:
     /// each task's description becomes a new idea and the task is removed).
     pub state: String,
+    /// Return the full record(s), description and timestamps included.
+    /// Defaults to false: the result gives each task's id, status and
+    /// priority only, to keep responses short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 /// The target state of `pjpd_mark_task`.
@@ -110,6 +120,11 @@ pub struct ReprioritizeTaskParams {
     pub priority: i64,
     /// List of tag-based task IDs (format: `<tag>-XXXX`) to reprioritize.
     pub task_ids: Vec<String>,
+    /// Return the full record(s), description and timestamps included.
+    /// Defaults to false: the result gives each task's id, status and
+    /// priority only, to keep responses short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
@@ -136,12 +151,22 @@ pub struct PutIdeaParams {
     /// Existing idea ID (format: `<tag>-XXXX`). Provide to update an existing idea.
     #[serde(default)]
     pub id: Option<String>,
+    /// Return the full record(s), description and timestamps included.
+    /// Defaults to false: the result gives each idea's id and score only, to
+    /// keep responses short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize, JsonSchema)]
 pub struct MarkIdeaDoneParams {
     /// List of tag-based idea IDs (format: `<tag>-XXXX`) to mark as done.
     pub idea_ids: Vec<String>,
+    /// Return the full record(s), description and timestamps included.
+    /// Defaults to false: the result gives each idea's id and score only, to
+    /// keep responses short.
+    #[serde(default)]
+    pub verbose: bool,
 }
 
 fn mcp_success(result: Value) -> CallToolResult {
@@ -157,6 +182,26 @@ fn to_tool_result(response: Value) -> CallToolResult {
         format!("{{\"success\": false, \"result\": \"\", \"error\": \"serialization error: {e}\"}}")
     });
     CallToolResult::success(vec![ContentBlock::text(text)])
+}
+
+/// A task as a mutating tool reports it (D-14): the full record when
+/// `verbose`, else only id, status and priority.
+fn task_summary(task: &Task, verbose: bool) -> Value {
+    if verbose {
+        task.to_json()
+    } else {
+        json!({"id": task.id, "status": task.status, "priority": task.priority})
+    }
+}
+
+/// An idea as a mutating tool reports it (D-14): the full record when
+/// `verbose`, else only id and score.
+fn idea_summary(idea: &Idea, verbose: bool) -> Value {
+    if verbose {
+        idea.to_json()
+    } else {
+        json!({"id": idea.id, "score": idea.score})
+    }
 }
 
 /// Render a string list the way Python's str(list) does: ['a', 'b'].
@@ -196,8 +241,12 @@ impl PjpdServer {
         result
     }
 
-    fn task_response(&self, task: &Task, message: &str) -> CallToolResult {
-        let result = record_map(task.to_json(), &self.tasks().tasks_file, message);
+    fn task_response(&self, task: &Task, verbose: bool, message: &str) -> CallToolResult {
+        let result = record_map(
+            task_summary(task, verbose),
+            &self.tasks().tasks_file,
+            message,
+        );
         mcp_success(Value::Object(self.with_warning(result)))
     }
 
@@ -211,7 +260,7 @@ impl PjpdServer {
         if let Some(tag) = &params.tag {
             let priority = params.priority.unwrap_or(DEFAULT_NEW_TASK_PRIORITY);
             let task = self.tasks().add(&params.description, priority, tag)?;
-            return Ok(self.task_response(&task, "Task created successfully"));
+            return Ok(self.task_response(&task, params.verbose, "Task created successfully"));
         }
 
         let id = params.id.as_deref().unwrap_or_default();
@@ -221,9 +270,11 @@ impl PjpdServer {
             status: None,
         };
         match self.tasks().update(id, &patch)? {
-            Some(task) => {
-                Ok(self.task_response(&task, &format!("Task '{id}' updated successfully")))
-            }
+            Some(task) => Ok(self.task_response(
+                &task,
+                params.verbose,
+                &format!("Task '{id}' updated successfully"),
+            )),
             None => Ok(mcp_failure(&format!(
                 "Task '{id}' not found. Use pjpd_list_tasks() to see existing task IDs."
             ))),
@@ -309,6 +360,7 @@ impl PjpdServer {
         &self,
         task_ids: &[String],
         patch: &TaskPatch,
+        verbose: bool,
         message: &str,
     ) -> Result<CallToolResult, String> {
         if let Some(failure) = self.missing_tasks_failure(task_ids) {
@@ -321,7 +373,7 @@ impl PjpdServer {
             .map(|id| {
                 store
                     .update(id, patch)?
-                    .map(|t| t.to_json())
+                    .map(|t| task_summary(&t, verbose))
                     .ok_or_else(|| format!("Task '{id}' disappeared during update"))
             })
             .collect::<Result<Vec<Value>, String>>()?;
@@ -340,7 +392,7 @@ impl PjpdServer {
     /// becomes a new idea with the task's tag and DEMOTED_IDEA_SCORE, then the
     /// tasks are removed. Ideas are saved first, so a failure in between
     /// leaves a duplicate rather than losing the text (G-1).
-    fn demote_tasks(&self, task_ids: &[String]) -> Result<CallToolResult, String> {
+    fn demote_tasks(&self, task_ids: &[String], verbose: bool) -> Result<CallToolResult, String> {
         if let Some(failure) = self.missing_tasks_failure(task_ids) {
             return Ok(failure);
         }
@@ -359,7 +411,12 @@ impl PjpdServer {
         let mut result = Map::new();
         result.insert(
             "ideas".to_string(),
-            json!(added.iter().map(|i| i.to_json()).collect::<Vec<Value>>()),
+            json!(
+                added
+                    .iter()
+                    .map(|i| idea_summary(i, verbose))
+                    .collect::<Vec<Value>>()
+            ),
         );
         result.insert(
             "project_file".to_string(),
@@ -386,7 +443,7 @@ impl PjpdServer {
                 priority: None,
                 status: Some(status.to_string()),
             };
-            self.bulk_update_tasks(&params.task_ids, &patch, &message)
+            self.bulk_update_tasks(&params.task_ids, &patch, params.verbose, &message)
         };
         match state {
             MarkState::Done => set_status(STATUS_DONE, format!("Marked {count} task(s) as done")),
@@ -394,7 +451,7 @@ impl PjpdServer {
                 STATUS_VERIFIED,
                 format!("Marked {count} task(s) as verified"),
             ),
-            MarkState::Idea => self.demote_tasks(&params.task_ids),
+            MarkState::Idea => self.demote_tasks(&params.task_ids, params.verbose),
         }
     }
 
@@ -424,6 +481,7 @@ impl PjpdServer {
             return Ok(idea_response(
                 &store,
                 &idea,
+                params.verbose,
                 &format!("Idea created successfully with ID '{}'", idea.id),
             ));
         }
@@ -433,6 +491,7 @@ impl PjpdServer {
             Some(idea) => Ok(idea_response(
                 &store,
                 &idea,
+                params.verbose,
                 &format!("Idea '{id}' updated successfully"),
             )),
             None => Ok(mcp_failure(&format!(
@@ -464,18 +523,24 @@ impl PjpdServer {
         for id in &params.idea_ids {
             store.mark_done(id)?;
         }
+        let marked: Vec<Value> = store
+            .load()
+            .iter()
+            .filter(|i| params.idea_ids.contains(&i.id))
+            .map(|i| idea_summary(i, params.verbose))
+            .collect();
 
         Ok(mcp_success(json!({
-            "idea_ids": params.idea_ids,
+            "ideas": marked,
             "project_file": store.ideas_file.to_string_lossy(),
             "message": format!("Marked {} idea(s) as done", params.idea_ids.len()),
         })))
     }
 }
 
-fn idea_response(store: &IdeaStore, idea: &crate::ideas::Idea, message: &str) -> CallToolResult {
+fn idea_response(store: &IdeaStore, idea: &Idea, verbose: bool, message: &str) -> CallToolResult {
     mcp_success(Value::Object(record_map(
-        idea.to_json(),
+        idea_summary(idea, verbose),
         &store.ideas_file,
         message,
     )))
@@ -553,6 +618,7 @@ impl PjpdServer {
             self.bulk_update_tasks(
                 &params.task_ids,
                 &reprioritize,
+                params.verbose,
                 &format!(
                     "Reprioritized {} task(s) to priority {}",
                     params.task_ids.len(),

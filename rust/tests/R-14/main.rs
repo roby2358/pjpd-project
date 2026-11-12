@@ -20,6 +20,7 @@ async fn put_task_updates_existing_task() {
             tag: None,
             id: Some(id.clone()),
             priority: Some(9),
+            verbose: true,
         }))
         .await;
     let body = assert_success(&response_json(&result));
@@ -40,6 +41,7 @@ async fn put_task_update_without_priority_preserves_existing() {
             tag: None,
             id: Some(id.clone()),
             priority: None,
+            verbose: true,
         }))
         .await;
     let body = assert_success(&response_json(&result));
@@ -57,6 +59,7 @@ async fn put_task_unknown_id_fails_gracefully() {
             tag: None,
             id: Some("ghost-ab29".to_string()),
             priority: Some(50),
+            verbose: false,
         }))
         .await;
     let error = assert_failure(&response_json(&result));

@@ -17,6 +17,7 @@ async fn put_idea_creates_idea() {
             description: "brilliant plan".to_string(),
             tag: Some("plan".to_string()),
             id: None,
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));

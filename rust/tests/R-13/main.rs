@@ -20,6 +20,7 @@ async fn put_task_creates_task_with_metadata() {
             tag: Some("docs".to_string()),
             id: None,
             priority: Some(7),
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));
@@ -41,6 +42,7 @@ async fn put_task_create_without_priority_defaults_to_50() {
             tag: Some("defp".to_string()),
             id: None,
             priority: None,
+            verbose: false,
         }))
         .await;
     let body = assert_success(&response_json(&result));

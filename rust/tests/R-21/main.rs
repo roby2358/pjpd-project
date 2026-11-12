@@ -18,6 +18,7 @@ async fn list_ideas_returns_stored_idea() {
                 description: "brilliant plan".to_string(),
                 tag: Some("plan".to_string()),
                 id: None,
+                verbose: false,
             }))
             .await,
     ));

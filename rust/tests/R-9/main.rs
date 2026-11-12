@@ -40,6 +40,7 @@ async fn put_task_create_stamps_created_in_utc() {
             tag: Some("docs".to_string()),
             id: None,
             priority: Some(7),
+            verbose: true,
         }))
         .await;
     let body = assert_success(&response_json(&result));

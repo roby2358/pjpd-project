@@ -28,16 +28,17 @@ async fn demote_turns_tasks_into_ideas() {
 
     let rethink = ideas
         .iter()
-        .find(|i| i["description"] == "rethink this\nsecond line")
-        .expect("demoted description kept in full");
+        .find(|i| i["id"].as_str().unwrap().starts_with("rethink-"))
+        .expect("demoted idea takes the task's tag");
     let rethink_id = rethink["id"].as_str().unwrap();
-    assert!(rethink_id.starts_with("rethink-"));
     assert_ne!(rethink_id, todo);
     assert_eq!(rethink["score"], 50);
 
-    // The ideas file holds the new ideas and no reference to the tasks.
+    // The ideas file holds the new ideas, descriptions in full, and no
+    // reference to the tasks.
     let ideas_file = std::fs::read_to_string(dir.path().join("pjpd/ideas.txt")).unwrap();
     assert!(ideas_file.contains(rethink_id));
+    assert!(ideas_file.contains("rethink this\nsecond line"));
     assert!(!ideas_file.contains(&todo) && !ideas_file.contains(&done));
 
     // The tasks are gone from every task file; the other task is untouched.

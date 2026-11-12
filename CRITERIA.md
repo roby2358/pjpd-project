@@ -35,7 +35,8 @@ as in the ONTOLOGY Numbers table.
 | R-23 | `pjpd/<dir-name>.txt` exists | Task tool results include `warning`; idea tools never do; no warning when that file is `tasks.txt` itself | automated |
 | R-24 | Any tool call | Response is `{success, result, error}`; every success result includes `project_file` with the full path of the file operated on; failures have `result: ""` | automated |
 | R-25 | `pjpd_mark_task` with state `verified` and known IDs, from todo or done | Each task's status becomes `Verified` and it moves to `tasks_verified.txt`; listed under status `verified` only | automated |
-| R-26 | `pjpd_mark_task` with state `idea` and known IDs, from any file | Each task's description becomes a new idea with a fresh ID from the task's tag and score DEMOTED_IDEA_SCORE, with no reference to the task; the tasks leave every task file; the result lists the new ideas and names `ideas.txt` | automated |
+| R-26 | `pjpd_mark_task` with state `idea` and known IDs, from any file | Each task's description becomes a new idea with a fresh ID from the task's tag and score DEMOTED_IDEA_SCORE, with no reference to the task; the tasks leave every task file; the result lists the new ideas (id and score) and names `ideas.txt` | automated |
+| R-27 | A mutating tool (`pjpd_put_task`, `pjpd_mark_task` in every state, `pjpd_reprioritize_task`, `pjpd_put_idea`, `pjpd_mark_idea_done`) succeeds, with and without `verbose` | By default each task is reported by id, status and priority only and each idea by id and score only (no description or timestamps), besides `project_file`, `message` and any `warning`; with `verbose: true` the full records | automated |
 
 ## U — Usability (manual)
 
@@ -49,7 +50,7 @@ as in the ONTOLOGY Numbers table.
 
 | ID | Criterion | Linked decision | Instrument |
 |---|---|---|---|
-| X-1 | An agent working the backlog one task at a time spends little of its context on pjpd responses. Fails if routine write calls echo full record text | D-14 | not yet covered |
+| X-1 | An agent working the backlog one task at a time spends little of its context on pjpd responses. Fails if routine write calls echo full record text | D-14 | manual — work one task with an agent and read the pjpd write responses; R-27 pins the lean shape |
 | X-2 | Real project data survives every release byte-identically on a load/save round trip with no edits. Fails if any record changes | D-2 | manual — round-trip a real `pjpd/` directory and diff |
 
 ## Status
@@ -59,8 +60,8 @@ as in the ONTOLOGY Numbers table.
 fails when an `automated` row has no tests there, a directory has no `automated` row, or
 an Instrument cell is not an allowed value.
 
-**Not yet covered:** X-1.
-**Manual only:** U-1, U-2, U-3, X-2.
+**Not yet covered:** none.
+**Manual only:** U-1, U-2, U-3, X-1, X-2.
 **Retired:** none.
 
 **Partial coverage:**

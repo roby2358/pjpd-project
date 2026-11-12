@@ -56,6 +56,7 @@ async fn put_task_rejects_tag_and_id_together() {
             tag: Some("t".to_string()),
             id: Some("t-ab29".to_string()),
             priority: Some(50),
+            verbose: false,
         }))
         .await;
     let error = assert_failure(&response_json(&result));

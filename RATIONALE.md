@@ -155,8 +155,17 @@ how decisions changed is in ARCHITECTURE_LOG.md.
   tool (G-3). `project_file` tells the model and the person exactly which file changed, so
   either can open it. Errors name the next step, such as which tool lists valid IDs,
   because the reader is a model that will act on them.
-- **Known gap (tracked as a task):** write tools echo the full record, which costs
-  context in agent loops (X-1).
+- **Write results are lean unless asked (X-1):** a write tool reports each record it
+  touched by id, status and priority (id and score for ideas) and returns the full
+  record only with `verbose: true`. The caller wrote the description itself and rarely
+  reads it back, and echoing it cost 150-300 tokens per task, sometimes 2-3 KB, on every
+  call in an agent loop. Alternatives: always echo (the old behavior); return nothing but
+  `message` (the caller then cannot see a generated ID, the status a mark produced, or the
+  priority kept by an update). `verbose` is a parameter on the existing tools, not a new
+  tool (D-18). `pjpd_mark_idea_done`, which already returned only `idea_ids`, now returns
+  `ideas` with the same summaries so every write tool has one shape; its order is save
+  order, the same as `pjpd_list_ideas`. Ideas have no status field, so their summary has
+  none; done-ness shows in the description, which `verbose` returns.
 
 ### D-15 List tools take a `count`, DEFAULT_COUNT by default, capped at COUNT_MAX — *Decided*
 - **Alternatives:** return everything; a configured cap (D-1).

@@ -3,13 +3,44 @@ Status: ToDo
 ID: clippyptr-rhq9
 Created: 2026-11-12T21:28:12Z
 Updated: 2026-11-12T21:28:12Z
-
 Fix the clippy `ptr_arg` warning in rust/src/ideas.rs: `IdeaStore::save(&self, ideas: &mut Vec<Idea>)` should take `&mut [Idea]` (it only sorts and iterates). No behavior change. Done when `cargo clippy --all-targets` in rust/ reports no warnings and `cargo test` is green.
+----
+Priority:   35
+Status: ToDo
+ID: dependson-n4en
+Created: 2026-11-14T17:03:10Z
+Updated: 2026-11-14T17:04:09Z
+Add an optional `Depends-On:` task property: a space-delimited list of task IDs that this task waits on. Requested by several agent sessions using pjpd.
+
+Decided by the owner (2026-11-14): the property is purely informational. List order stays priority-only (D-4 untouched); nothing is flagged, reordered or blocked, and the reader works out what is waiting on what. Flagging blocked tasks in list output is a separate follow-up task (blockedflag); sorting blocked tasks after unblocked ones was rejected because a high-priority task with a low-priority dependency would contradict the sort.
+
+Shape:
+- On disk: a `Depends-On: <id> <id> ...` header line in the leading property run of a task record (D-2, D-9). Omitted when the list is empty, so existing files are unchanged.
+- API: extend `pjpd_put_task` with an optional `depends_on` string (space-delimited IDs) rather than adding a tool (D-18). Each entry must match the task ID pattern. On update, omitting it leaves the list unchanged; an empty string clears it.
+- `pjpd_list_tasks` returns `depends_on` for tasks that have one.
+- Parser stays forgiving (D-8): malformed or unknown IDs in the file survive a round trip.
+- Because it is informational: IDs are format-checked only, not checked for existence; no cycle detection; `pjpd_mark_task` does nothing with dependents (a `Depends-On` entry naming a Done, Verified or removed task simply stays as written).
+
+Done when: the property round-trips through put/list and the file; ONTOLOGY (entity, on-disk format, tool interface, rule), RATIONALE (a new D-n recording the informational-only decision and the rejected alternatives), CRITERIA (rows plus tests under rust/tests/R-n/) and ARCHITECTURE_LOG are updated in the same change; `cargo test` in rust/ is green.
 ----
 Priority:   30
 Status: ToDo
 ID: legacytag-cp43
 Created: 2026-11-12T22:18:27Z
 Updated: 2026-11-12T22:18:27Z
-
 In rust/src/record.rs, `tag_from_id` returns the string literal "legacy" in two places instead of `ids::LEGACY_TAG`, the constant defined for that tag in ids.rs. Replace both literals with `ids::LEGACY_TAG.to_string()`. No behavior change. Done when `cargo test` in rust/ is green and grep finds no "legacy" string literal in record.rs.
+----
+Priority:   25
+Status: ToDo
+ID: blockedflag-dg32
+Created: 2026-11-14T17:04:13Z
+Updated: 2026-11-14T17:06:13Z
+Report out-of-order dependencies in `pjpd_list_tasks` output. Follow-up to dependson-n4en (the informational `Depends-On:` property), which must be built first.
+
+Only dependencies with an equal or lower priority than the task that depends on them are reported. A dependency with a strictly higher priority is already planned to happen first, so priority takes care of it and there is nothing to say. Equal priority is reported because the order between two tasks of the same priority is ambiguous: the dependency is not clearly planned first (owner's decisions, 2026-11-14). What is reported is the case where priority does not guarantee the dependency comes first: the task could be picked up before something it waits on.
+
+Rule: for each listed task, report the IDs in its `Depends-On` list that are (1) still in pjpd/tasks.txt (status ToDo) and (2) have a priority equal to or lower than the task's own. A dependency that is Done, Verified, removed or unknown is satisfied and never reported, so only tasks.txt needs to be read. Return them as a list property on the task (e.g. `blocked_by`), omitted when empty, so a calling model can see which tasks to do or reprioritize first.
+
+Constraints: no reordering — list order stays priority-only, which is the owner's condition for having dependencies at all. Nothing is stored on disk; the report is computed at list time. No new tool (D-18). Cycles need no special handling.
+
+Done when: list output reports an open dependency of equal priority and one of lower priority, does not report a strictly higher-priority one, and stops reporting once the dependency is marked done or reprioritized above the task; ONTOLOGY (tool interface, rule), RATIONALE (D-n), CRITERIA (rows plus tests under rust/tests/R-n/) and ARCHITECTURE_LOG are updated in the same change; `cargo test` in rust/ is green.
